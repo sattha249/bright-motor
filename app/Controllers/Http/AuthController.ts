@@ -1,0 +1,34 @@
+// app/Controllers/Http/AuthController.ts
+import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import User from 'App/Models/User'
+import Hash from '@ioc:Adonis/Core/Hash'
+
+export default class AuthController {
+  public async register({ auth,request,response }: HttpContextContract) {
+    const authUser =  auth.user
+    const data = request.only(['username', 'email', 'password', 'role','fullname','tel'])
+    if (authUser?.role !== 'admin') {
+      return response.status(401).json({sucees:false, message: 'Only admin can register' })
+    }
+    const user = await User.create(data)
+    return user
+  }
+
+  public async login({ request, auth, response }: HttpContextContract) {
+    const { username, password } = request.only(['username', 'password'])
+
+    const user = await User.query().where('username', username).firstOrFail()
+    const isPasswordValid = await Hash.verify(user.password, password)
+    if (!isPasswordValid) {
+      return response.unauthorized({ message: 'Invalid credentials' })
+    }
+
+    const token = await auth.use('api').generate(user)
+    return response.status(200).json(token)  
+  }
+
+  public async logout({ auth }: HttpContextContract) {
+    await auth.use('api').revoke()
+    return { message: 'Logged out successfully' }
+  }
+}
