@@ -24,7 +24,6 @@ import './routes/product'
 import './routes/sellLog'
 import './routes/warehouse'
 import './routes/truck'
-import './routes/truckStock'
 import './routes/stockLog'
 import Route from '@ioc:Adonis/Core/Route'
 
