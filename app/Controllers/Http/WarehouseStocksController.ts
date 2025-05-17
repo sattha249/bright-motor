@@ -29,7 +29,7 @@ export default class WarehouseStocksController {
       { productId },
       { quantity: 0 }
     )
-
+    stock.updatedBy = user.id
     stock.quantity += quantity
     await stock.save()
 
