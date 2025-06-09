@@ -24,6 +24,9 @@ export default class SellLog extends BaseModel {
   public totalPrice: number
 
   @column()
+  public isCredit: string
+
+  @column()
   public userId: number
 
   @column.dateTime({ autoCreate: true })

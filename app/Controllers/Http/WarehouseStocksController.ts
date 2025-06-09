@@ -1,3 +1,4 @@
+
 // 📁 app/Controllers/Http/WarehouseStocksController.ts
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import WarehouseStock from 'App/Models/WarehouseStock'
@@ -48,16 +49,19 @@ export default class WarehouseStocksController {
   }
 
   public async moveToTruck({ request,response, auth }: HttpContextContract) {
-    const { productId, quantity, truckId } = request.only(['productId', 'quantity', 'truckId'])
+    const { products, truckId } = request.only(['products', 'truckId'])
     if (auth.user?.role == 'truck') {
       return response.status(401).json({success:false, message: 'คุณไม่มีสิทธิ์ในการย้ายสินค้า' })
     }
-
+    try{
+    let createdStocks  = []
+    for (const product of products) {
+    // TODO make it to many items
     const warehouseStock = await WarehouseStock.query()
-      .where('product_id', productId)
+      .where('product_id', product.productId)
       .firstOrFail()
 
-    if (warehouseStock.quantity < quantity) {
+    if (warehouseStock.quantity < product.quantity) {
       return response.status(400).json({success:false, message: 'ไม่สามารถย้ายสินค้าได้ เนื่องจากปริมาณในโกดังไม่เพียงพอ' })
     }
 
@@ -65,29 +69,29 @@ export default class WarehouseStocksController {
     // เพิ่มสินค้าลงในรถ
     const truckStock = await TruckStock.query()
       .where('truck_id', truckId)
-      .where('product_id', productId)
+      .where('product_id', product.productId)
       .first()
 
     // ลดสินค้าในโกดัง
-    warehouseStock.quantity -= quantity
+    warehouseStock.quantity -= product.quantity
     await warehouseStock.save()
 
     if (truckStock) {
       console.log('truckStock', truckStock)
-      truckStock.quantity += quantity
+      truckStock.quantity += product.quantity
       await truckStock.save()
     } else {
       await TruckStock.create({
         truckId,
-        productId,
-        quantity,
+        productId:product.productId,
+        quantity:product.quantity,
       })
     }
 
-    // บันทึก log
-    await StockLog.create({
-      productId,
-      quantity,
+    createdStocks.push({
+      productId: product.productId,
+      quantity: product.quantity,
+      targetId: truckId,
       sourceType: 'warehouse',
       sourceId: warehouseStock.id,
       targetType: 'truck',
@@ -96,7 +100,15 @@ export default class WarehouseStocksController {
       userId: auth.user!.id,
     })
 
-    return response.status(200).json({success:true, message: 'ย้ายสินค้าไปยังรถสำเร็จ' })
   }
-  
+
+    await StockLog.createMany(createdStocks)
+
+    return response.status(200).json({success:true, message: 'ย้ายสินค้าไปยังรถสำเร็จ' })
+    } catch (error) {
+    console.error('Error moving products to truck:', error)
+    return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการย้ายสินค้า' })
+    }
+  }
+
 }
