@@ -23,29 +23,39 @@ export default class WarehouseStocksController {
   }
 
   public async import({ request, auth }: HttpContextContract) {
-    const { productId, quantity } = request.only(['productId', 'quantity'])
+    const { products } = request.only(['products'])
     const user = auth.user!
-
+    if (user.role !== 'admin' && user.role !== 'warehouse') {
+      return { success: false, message: 'คุณไม่มีสิทธิ์ในการนำเข้าสินค้า' }
+    }
+    try{
+    let createdStocks = []
+    for (const product of products) {
     const stock = await WarehouseStock.firstOrCreate(
-      { productId },
-      { quantity: 0 }
+      { productId : product.productId },
     )
     stock.updatedBy = user.id
-    stock.quantity += quantity
+    stock.quantity += product.quantity
     await stock.save()
 
-    await StockLog.create({
-      productId,
-      quantity,
+    createdStocks.push({
+      productId: product.productId,
+      quantity: product.quantity,
       sourceType: 'warehouse',
-      sourceId: 1,
+      sourceId: 1, 
       targetType: 'warehouse',
-      targetId: 1,
+      targetId: 1, 
       type: 'import',
       userId: user.id,
     })
 
-    return stock
+    }
+    await StockLog.createMany(createdStocks)
+    return { success: true, message: 'นำเข้าสินค้าเรียบร้อยแล้ว' ,detail : createdStocks }
+    }catch(err){
+      console.log(err)
+      return { success: false, message: 'เกิดข้อผิดพลาดในการนำเข้าสินค้า' }
+    }
   }
 
   public async moveToTruck({ request,response, auth }: HttpContextContract) {
