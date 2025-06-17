@@ -31,4 +31,30 @@ export default class AuthController {
     await auth.use('api').revoke()
     return { message: 'Logged out successfully' }
   }
+
+    public async getProfile({ auth, response }: HttpContextContract) {
+    const user = auth.user!
+    return response.ok(user)
+  }
+
+    public async updateProfile({ auth, request, response }: HttpContextContract) {
+    const user = auth.user!
+
+    const payload = request.only(['fullname', 'email', 'tel', 'username'])
+
+    if (payload.email && payload.email !== user.email) {
+      const exists = await User.query().where('email', payload.email).first()
+      if (exists) return response.badRequest({ message: 'Email already taken' })
+    }
+
+    if (payload.username && payload.username !== user.username) {
+      const exists = await User.query().where('username', payload.username).first()
+      if (exists) return response.badRequest({ message: 'Username already taken' })
+    }
+
+    user.merge(payload)
+    await user.save()
+
+    return response.ok(user)
+  }
 }
