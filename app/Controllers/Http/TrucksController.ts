@@ -39,7 +39,8 @@ export default class TrucksController {
 
     if (search) {
       query.whereHas('product', (builder) => {
-        builder.whereILike('name', `%${search}%`)
+        builder.whereILike('category', `%${search}%`)
+          .orWhereILike('brand', `%${search}%`)
       })
     }
 
