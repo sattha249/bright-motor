@@ -25,6 +25,7 @@ import './routes/sellLog'
 import './routes/warehouse'
 import './routes/truck'
 import './routes/stockLog'
+import './routes/setting'
 import Route from '@ioc:Adonis/Core/Route'
 
 Route.get('/', async () => {
