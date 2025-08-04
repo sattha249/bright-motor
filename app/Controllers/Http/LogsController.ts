@@ -4,6 +4,8 @@ import SellLogItem from 'App/Models/SellLogItem'
 import TruckStock from 'App/Models/TruckStock'
 import WarehouseStock from 'App/Models/WarehouseStock'
 import Database from '@ioc:Adonis/Lucid/Database'
+import moment from 'moment'
+import Product from 'App/Models/Product'
 
 export default class SellLogsController {
   public async index({ request }) {
@@ -96,4 +98,28 @@ export default class SellLogsController {
       throw err
     }
   }
+
+  public async summary({auth,request,response}){
+    try{
+    const startDate = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const endDate = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const sellLogsResult = await SellLog.query()
+      .where('created_at', '>=', startDate)
+      .where('created_at', '<=', endDate)
+      .sum('total_price as total')
+    const totalSales = sellLogsResult[0].$extras.total || 0
+
+    const totalProductResult = await Product.query().count('* as count')
+    const totalProduct = totalProductResult[0].$extras.count
+
+    const totalProductInStockResult = await WarehouseStock.query().count('* as count')
+    const totalProductInStock = totalProductInStockResult[0].$extras.count || 0
+    return response.json({totalSales,totalProduct,totalProductInStock})
+     
+  }
+  catch(err){
+    console.log(err)
+    return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล'})
+  }
+}
 }
