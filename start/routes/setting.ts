@@ -2,7 +2,7 @@
 import Route from '@ioc:Adonis/Core/Route'
 
 Route.group(() => {
-  Route.get('qrcode', 'SettingsController.getQrCode').middleware('auth')
-  Route.post('qrcode', 'SettingsController.uploadQrCode').middleware('auth')
+  Route.get('qrcode', 'SettingsController.getQrCode')
+  Route.post('qrcode', 'SettingsController.uploadQrCode')
 }).prefix('settings').middleware(['auth'])
 
