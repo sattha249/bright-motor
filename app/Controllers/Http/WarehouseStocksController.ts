@@ -22,11 +22,11 @@ export default class WarehouseStocksController {
     return await query.paginate(page, limit)
   }
 
-  public async import({ request, auth }: HttpContextContract) {
+  public async import({ request, auth , response }: HttpContextContract) {
     const { products } = request.only(['products'])
     const user = auth.user!
     if (user.role !== 'admin' && user.role !== 'warehouse') {
-      return { success: false, message: 'คุณไม่มีสิทธิ์ในการนำเข้าสินค้า' }
+       return response.status(500).json({success: false, message: 'คุณไม่มีสิทธิ์ในการนำเข้าสินค้า' })
     }
     try{
     let createdStocks = []
@@ -54,7 +54,7 @@ export default class WarehouseStocksController {
     return { success: true, message: 'นำเข้าสินค้าเรียบร้อยแล้ว' ,detail : createdStocks }
     }catch(err){
       console.log(err)
-      return { success: false, message: 'เกิดข้อผิดพลาดในการนำเข้าสินค้า' }
+      return response.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการนำเข้าสินค้า' })
     }
   }
 
