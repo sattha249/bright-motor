@@ -27,7 +27,7 @@ export default class SellLogsController {
           .orWhere('bill_no', 'like', `%${search}%`)
       })
     }
-
+    query.orderBy('created_at', 'desc')
     return await query.paginate(page, limit)
   }
 
