@@ -12,7 +12,7 @@ export default class SellLogsController {
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const search = request.input('search', '')
-
+    const truck = request.input('truck', '')
     const query = SellLog.query()
       .preload('items')
       .preload('customer')
@@ -26,6 +26,10 @@ export default class SellLogsController {
           })
           .orWhere('bill_no', 'like', `%${search}%`)
       })
+    }
+
+    if (truck) {
+      query.where('truck_id', truck)
     }
     query.orderBy('created_at', 'desc')
     return await query.paginate(page, limit)

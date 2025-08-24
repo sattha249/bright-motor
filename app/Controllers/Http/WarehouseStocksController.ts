@@ -10,7 +10,6 @@ export default class WarehouseStocksController {
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const search = request.input('search', '').trim()
-
     const query = WarehouseStock.query().preload('product')
 
     if (search) {
@@ -23,6 +22,10 @@ export default class WarehouseStocksController {
     }
 
     return await query.paginate(page, limit)
+  }
+
+  public async show({ params }: HttpContextContract) {
+    return await WarehouseStock.query().where('product_id', params.productId).preload('product')
   }
 
   public async import({ request, auth , response }: HttpContextContract) {
