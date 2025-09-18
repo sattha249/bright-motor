@@ -6,6 +6,12 @@ export default class Product extends BaseModel {
 
   @column({ isPrimary: true })
   public id: number
+
+  @column()
+  public productCode: string
+  
+  @column()
+  public zone: string
   
    @column()
   public category: string

@@ -12,6 +12,7 @@ export default class ProductsController {
     if (search) {
       query.where((q) => {
         q.whereILike('description', `%${search}%`)
+         .orWhereILike('product_code', `%${search}%`)
          .orWhereILike('brand', `%${search}%`)
          .orWhereILike('model', `%${search}%`)
       })
@@ -22,6 +23,7 @@ export default class ProductsController {
 
   public async store({ request }: HttpContextContract) {
     const data = request.only([
+      'product_code',
       'category',
       'description',
       'brand',
@@ -29,6 +31,7 @@ export default class ProductsController {
       'cost_price',
       'sell_price',
       'unit',
+      'zone'
     ])
 
     return await Product.create(data)
@@ -48,6 +51,7 @@ export default class ProductsController {
       'cost_price',
       'sell_price',
       'unit',
+      'zone'
     ])
 
     product.merge(data)
