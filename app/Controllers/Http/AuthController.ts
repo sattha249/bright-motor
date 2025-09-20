@@ -64,4 +64,60 @@ export default class AuthController {
 
     return response.ok(user)
   }
+  // implement by these 
+//   Route.get('users', 'AuthController.listUsers').middleware('auth')
+// Route.put('users/:id', 'AuthController.updateUser').middleware('auth')
+// Route.delete('users/:id', 'AuthController.deleteUser').middleware('auth')
+  public async listUsers({ auth,request, response }: HttpContextContract) {
+    // make it query by qs too
+    const { role, search, page = 1, perPage = 10 } = request.qs()
+
+    const authUser =  auth.user
+    if (authUser?.role !== 'admin') {
+      return response.status(401).json({success:false, message: 'Only admin can list users' })
+    }
+    let users =  User.query().select('id', 'username', 'email', 'role', 'fullname', 'tel', 'createdAt', 'updatedAt')
+    if (role) users = users.where('role', role)
+    if (search) {
+      users = users.where((q) => {
+        q.whereILike('fullname', `%${search}%`)
+         .orWhereILike('email', `%${search}%`)
+         .orWhereILike('username', `%${search}%`)
+         .orWhereILike('tel', `%${search}%`)
+      })
+    }
+    users = await users.orderBy('id', 'desc').paginate(Number(page), Number(perPage))
+    return response.ok(users)
+  }
+
+  public async updateUser({ auth, request, response, params }: HttpContextContract) {
+    const authUser =  auth.user
+    if (authUser?.role !== 'admin') {
+      return response.status(401).json({success:false, message: 'Only admin can update users' })
+    }
+    const user = await User.findOrFail(params.id)
+    const payload = request.only(['fullname', 'email', 'tel', 'username', 'role'])
+    
+    if (payload.email && payload.email !== user.email) {
+      const exists = await User.query().where('email', payload.email).first()
+      if (exists) return response.badRequest({ message: 'Email already taken' })
+    }
+   
+    if (payload.username && payload.username !== user.username) {
+      const exists = await User.query().where('username', payload.username).first()
+      if (exists) return response.badRequest({ message: 'Username already taken' })
+    }
+    user.merge(payload)
+    await user.save()
+    return response.ok(user)
+  }
+  public async deleteUser({ auth, response, params }: HttpContextContract) {
+    const authUser =  auth.user
+    if (authUser?.role !== 'admin') {
+      return response.status(401).json({success:false, message: 'Only admin can delete users' })
+    }
+    const user = await User.findOrFail(params.id)
+    await user.delete()
+    return response.ok({ message: 'User deleted successfully' })
+  }
 }
