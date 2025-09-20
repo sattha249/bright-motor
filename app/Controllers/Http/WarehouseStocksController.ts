@@ -41,7 +41,8 @@ export default class WarehouseStocksController {
       { productId : product.productId },
     )
     stock.updatedBy = user.id
-    stock.quantity += product.quantity
+    let quantity = stock.quantity || 0
+    stock.quantity = quantity + product.quantity
     await stock.save()
 
     createdStocks.push({
