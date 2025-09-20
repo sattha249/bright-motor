@@ -11,6 +11,15 @@ export default class Truck extends BaseModel {
   @column()
   public userId: number
 
+  @column()
+  public plateProvince: string
+
+  @column()
+  public model: string
+
+  @column()
+  public loadCapacity: number
+
   @belongsTo(() => User)
   public user: BelongsTo<typeof User>
 

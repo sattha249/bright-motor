@@ -18,7 +18,7 @@ export default class TrucksController {
 
   public async update({ params, request }: HttpContextContract) {
     const truck = await Truck.findOrFail(params.id)
-    const data = request.only(['plateNumber', 'userId'])
+    const data = request.only(['plateNumber', 'userId', 'plateProvince', 'model', 'loadCapacity'])
     truck.merge(data)
     await truck.save()
     return truck
