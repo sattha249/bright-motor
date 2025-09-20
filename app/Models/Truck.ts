@@ -9,9 +9,6 @@ export default class Truck extends BaseModel {
   public plateNumber: string
 
   @column()
-  public userId: number
-
-  @column()
   public plateProvince: string
 
   @column()
@@ -19,6 +16,9 @@ export default class Truck extends BaseModel {
 
   @column()
   public loadCapacity: number
+
+   @column()
+  public userId: number
 
   @belongsTo(() => User)
   public user: BelongsTo<typeof User>
