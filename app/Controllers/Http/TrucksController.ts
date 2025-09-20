@@ -8,7 +8,11 @@ export default class TrucksController {
   }
 
   public async store({ request }: HttpContextContract) {
-    const data = request.only(['plateNumber', 'userId'])
+    const data = request.only(['plateNumber', 'userId', 'plateProvince', 'model', 'loadCapacity'])
+    let existTruck = await Truck.query().where('plateNumber', data.plateNumber).first()
+    if(existTruck){
+      return { success: false, message: 'มีทะเบียนรถนี้ในระบบแล้ว' }
+    }
     return await Truck.create(data)
   }
 
