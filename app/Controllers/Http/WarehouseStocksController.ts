@@ -9,6 +9,8 @@ export default class WarehouseStocksController {
   public async index({ request }) {
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
+    const orderBy = request.input('orderBy','quantity')
+    const sort = request.input('sort','asc')
     const search = request.input('search', '').trim()
     const query = WarehouseStock.query().preload('product')
 
@@ -20,7 +22,7 @@ export default class WarehouseStocksController {
          .orWhereILike('model', `%${search}%`)
       })
     }
-
+    query.orderBy(orderBy,sort)
     return await query.paginate(page, limit)
   }
 
