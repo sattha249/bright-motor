@@ -50,6 +50,7 @@ export default class SellLogsController {
 
     const trx = await Database.transaction()
     try {
+      await this.cutStock(data,auth.user?.role)
       const billNo = this.generateBillNo(data)
       const sellLog = await SellLog.create({
         billNo: billNo,
@@ -69,7 +70,7 @@ export default class SellLogsController {
         }, { client: trx })
       }
       await trx.commit()
-      await this.cutStock(data,auth.user?.role)
+      
       return response.status(201).json({billNo: billNo, message: 'Sell log created successfully', data: sellLog})
     } catch (err) {
       await trx.rollback()
@@ -87,7 +88,6 @@ export default class SellLogsController {
       for (const item of data.items) {
         let selectedQueryModel = role == 'truck' ? TruckStock.query().where('truck_id', data.truckId) : WarehouseStock.query()
         const stock = await selectedQueryModel
-          .where('truck_id', data.truckId)
           .where('product_id', item.productId)
           .first()
 
