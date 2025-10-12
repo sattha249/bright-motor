@@ -116,14 +116,16 @@ export default class SellLogsController {
       .where('created_at', '>=', startDate)
       .where('created_at', '<=', endDate)
       .sum('total_price as total')
+      .sum('total_discount as discount')
     const totalSales = sellLogsResult[0].$extras.total || 0
+    const totalDiscount = sellLogsResult[0].$extras.discount || 0
 
     const totalProductResult = await Product.query().count('* as count')
     const totalProduct = totalProductResult[0].$extras.count
 
     const totalProductInStockResult = await WarehouseStock.query().count('* as count')
     const totalProductInStock = totalProductInStockResult[0].$extras.count || 0
-    return response.json({totalSales,totalProduct,totalProductInStock})
+    return response.json({totalSales,totalProduct,totalProductInStock,totalDiscount})
      
   }
   catch(err){
