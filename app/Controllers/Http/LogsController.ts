@@ -46,7 +46,7 @@ export default class SellLogsController {
   }
 
   public async store({ request,response, auth }: HttpContextContract) {
-    const data = request.only([ 'customerId', 'truckId', 'totalPrice', 'items'])
+    const data = request.only([ 'customerId', 'truckId', 'totalPrice', 'items','totalDiscount','totalSoldPrice','isCredit'])
 
     const trx = await Database.transaction()
     try {
@@ -55,8 +55,11 @@ export default class SellLogsController {
       const sellLog = await SellLog.create({
         billNo: billNo,
         customerId: data.customerId,
-        truckId: data.truckId,
+        truckId: data.truckId || 0, // 0 means from warehouse
         totalPrice: data.items.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+        totalDiscount: data.totalDiscount || 0,
+        totalSoldPrice: data.totalSoldPrice || data.totalPrice,
+        isCredit: data.isCredit || null,
         userId: auth.user?.id,
       }, { client: trx })
 
@@ -67,6 +70,8 @@ export default class SellLogsController {
           quantity: item.quantity,
           price: item.price,
           totalPrice: item.price * item.quantity,
+          discount: item.discount || 0,
+          soldPrice: item.soldPrice || item.price,
         }, { client: trx })
       }
       await trx.commit()
@@ -79,7 +84,7 @@ export default class SellLogsController {
   }
 
   private generateBillNo(data){
-    return `BMT-${data.customerId}-${data.truckId}-${new Date().getTime()}`
+    return `BMT-${data.customerId}-${data.truckId || '0'}-${new Date().getTime()}`
   }
 
   private async cutStock(data,role) {

@@ -24,6 +24,12 @@ export default class SellLog extends BaseModel {
   public totalPrice: number
 
   @column()
+  public totalDiscount: number
+  
+  @column()
+  public totalSoldPrice: number
+
+  @column()
   public isCredit: string
 
   @column()

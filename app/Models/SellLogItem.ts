@@ -23,6 +23,12 @@ export default class SellLogItem extends BaseModel {
   @column()
   public totalPrice: number
 
+  @column()
+  public discount: number
+  
+  @column()
+  public soldPrice: number
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
