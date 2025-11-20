@@ -8,11 +8,15 @@ import moment from 'moment'
 import Product from 'App/Models/Product'
 
 export default class SellLogsController {
-  public async index({ request }) {
+ public async index({ request }) {
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const search = request.input('search', '')
-    const truck = request.input('truck', '')
+    
+    const truck = request.input('truck_id') 
+    const startDate = request.input('start_date')
+    const endDate = request.input('end_date')
+
     const query = SellLog.query()
       .preload('items')
       .preload('customer')
@@ -28,9 +32,18 @@ export default class SellLogsController {
       })
     }
 
-    if (truck) {
+    if (truck !== null && truck !== undefined && truck !== '') {
       query.where('truck_id', truck)
     }
+
+    if (startDate) {
+      query.where('created_at', '>=', `${startDate} 00:00:00`)
+    }
+
+    if (endDate) {
+      query.where('created_at', '<=', `${endDate} 23:59:59`)
+    }
+
     query.orderBy('created_at', 'desc')
     return await query.paginate(page, limit)
   }
