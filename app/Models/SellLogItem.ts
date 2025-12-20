@@ -29,6 +29,9 @@ export default class SellLogItem extends BaseModel {
   @column()
   public soldPrice: number
 
+  @column()
+  public isPaid: boolean
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 

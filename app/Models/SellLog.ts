@@ -18,10 +18,22 @@ export default class SellLog extends BaseModel {
   public truckId: number
 
   @column()
+  public truckName: string
+
+  @column()
   public customerId: number
 
   @column()
   public totalPrice: number
+
+  @column()
+  public pendingAmount: number
+  
+  @column()
+  public interest: number
+
+  @column()
+  public isPaid: boolean
 
   @column()
   public totalDiscount: number

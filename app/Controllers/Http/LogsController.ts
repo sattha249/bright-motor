@@ -6,6 +6,8 @@ import WarehouseStock from 'App/Models/WarehouseStock'
 import Database from '@ioc:Adonis/Lucid/Database'
 import moment from 'moment'
 import Product from 'App/Models/Product'
+import Truck from 'App/Models/Truck'
+import User from 'App/Models/User'
 
 export default class SellLogsController {
  public async index({ request }) {
@@ -58,24 +60,64 @@ export default class SellLogsController {
     return sellLog
   }
 
-  public async store({ request,response, auth }: HttpContextContract) {
-    const data = request.only([ 'customerId', 'truckId', 'totalPrice', 'items','totalDiscount','totalSoldPrice','isCredit'])
+public async store({ request, response, auth }: HttpContextContract) {
+    const data = request.only([
+      'customerId', 'truckId', 'totalPrice', 'items',
+      'totalDiscount', 'totalSoldPrice', 'isCredit'
+    ])
+
+    let truckName = ''
+    if (data.truckId) {
+      const truck = await Truck.find(data.truckId)
+      if (truck && truck.userId) {
+        const user = await User.find(truck.userId)
+        if (user) {
+          truckName = user.fullname
+        }
+      }
+    }
+
+    let calculatedPendingAmount = 0
+    let isBillPaid = true 
+
+    data.items.forEach((item) => {
+      const itemSoldPrice = parseFloat(item.sold_price || item.soldPrice)
+      const itemQty = parseInt(item.quantity)
+
+      if (item.is_paid === false) {
+        isBillPaid = false 
+        calculatedPendingAmount += ((itemSoldPrice - item.discount) * itemQty)
+      }
+    })
+
 
     const trx = await Database.transaction()
     try {
-      await this.cutStock(data,auth.user?.role)
+      await this.cutStock(data, auth.user?.role)
       const billNo = this.generateBillNo(data)
+
       const sellLog = await SellLog.create({
         billNo: billNo,
         customerId: data.customerId,
-        truckId: data.truckId || 0, // 0 means from warehouse
-        totalPrice: data.items.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+        truckId: data.truckId || 0,
+        truckName: truckName,
+        
+        totalPrice: data.items.reduce((acc, item) => {
+             const price = parseFloat(item.price)
+             return acc + (price * item.quantity)
+        }, 0),
+
         totalDiscount: data.totalDiscount || 0,
         totalSoldPrice: data.totalSoldPrice || data.totalPrice,
         isCredit: data.isCredit || null,
         userId: auth.user?.id,
+
+        pendingAmount: calculatedPendingAmount, // ยอดค้างชำระที่คำนวณจาก items ที่เป็น false
+        isPaid: isBillPaid, // สถานะการจ่ายเงินของบิลหลัก (ต้องมี field นี้ใน DB)
+        interest: 0, // default interest
       }, { client: trx })
 
+      // บันทึก Items
       for (const item of data.items) {
         await SellLogItem.create({
           sellLogId: sellLog.id,
@@ -84,12 +126,14 @@ export default class SellLogsController {
           price: item.price,
           totalPrice: item.price * item.quantity,
           discount: item.discount || 0,
-          soldPrice: item.soldPrice || item.price,
+          soldPrice: item.sold_price || item.soldPrice, // รองรับ snake_case จาก json
+          isPaid: item.is_paid !== undefined ? item.is_paid : true 
         }, { client: trx })
       }
+
       await trx.commit()
       
-      return response.status(201).json({billNo: billNo, message: 'Sell log created successfully', data: sellLog})
+      return response.status(201).json({ billNo: billNo, message: 'Sell log created successfully', data: sellLog })
     } catch (err) {
       await trx.rollback()
       throw err

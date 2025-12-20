@@ -8,6 +8,7 @@ export default class AlterSellLogs extends BaseSchema {
       table.string(('truck_name')).nullable().after('truck_id')
       table.decimal('pending_amount', 10, 2).defaultTo(0).after('total_price')
       table.decimal('interest', 10, 2).defaultTo(0).after('pending_amount')
+      table.boolean('is_paid').defaultTo(false).after('interest')
     })
   }
 
@@ -16,6 +17,7 @@ export default class AlterSellLogs extends BaseSchema {
       table.dropColumn('truck_name')
       table.dropColumn('pending_amount')
       table.dropColumn('interest')
+      table.dropColumn('is_paid')
     })
   }
 }
