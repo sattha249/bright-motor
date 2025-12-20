@@ -8,6 +8,8 @@ import moment from 'moment'
 import Product from 'App/Models/Product'
 import Truck from 'App/Models/Truck'
 import User from 'App/Models/User'
+const CREDIT_PERIOD = { week: 7 , month: 24} // days
+const INTEREST_RATE_PERCENT = 3 // 3% per selected_period
 
 export default class SellLogsController {
  public async index({ request }) {
@@ -190,4 +192,129 @@ public async store({ request, response, auth }: HttpContextContract) {
     return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล'})
   }
 }
+// credit section
+// 1. แสดงรายการ Credit ทั้งหมด (Index) + Search
+  public async indexCredit({ request, response }: HttpContextContract) {
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 10)
+    const search = request.input('search', '')
+
+    const query = SellLog.query()
+      .where('is_paid', false) // ดึงเฉพาะบิลที่ยังไม่จ่าย
+      // .whereNotNull('is_credit') // (Option) ถ้าอยากกรองเฉพาะที่มีค่า credit
+      .orderBy('created_at', 'desc')
+
+    if (search) {
+      query.where((q) => {
+        q.where('bill_no', 'like', `%${search}%`)
+         .orWhere('truck_name', 'like', `%${search}%`)
+         .orWhereHas('customer', (cQuery) => {
+           cQuery.where('name', 'like', `%${search}%`)
+         })
+      })
+    }
+
+    const results = await query.paginate(page, limit)
+    return response.json(results)
+  }
+
+  // 2. แสดงรายละเอียด Credit และคำนวณดอกเบี้ย (ShowCredit)
+  public async showCredit({ params, response }: HttpContextContract) {
+    const sellLog = await SellLog.findOrFail(params.id)
+
+    // ตรวจสอบเงื่อนไข: ยังไม่จ่าย และ เป็นเคสเครดิต
+    if (!sellLog.isPaid && sellLog.isCredit && CREDIT_PERIOD[sellLog.isCredit]) {
+      
+      const periodDays = CREDIT_PERIOD[sellLog.isCredit] // 7 หรือ 24
+      
+      // แปลง createdAt ของ Adonis (Luxon) เป็น Moment object
+      const createdAt = moment(sellLog.createdAt.toJSDate())
+      const now = moment()
+      
+      // หาผลต่างจำนวนวัน
+      const diffDays = now.diff(createdAt, 'days')
+
+      // หากจำนวนวันเกินกำหนด (อย่างน้อย 1 รอบ)
+      if (diffDays >= periodDays) {
+        // คำนวณจำนวนรอบ (ปัดเศษลง)
+        const rounds = Math.floor(diffDays / periodDays)
+        const interestAmount = (sellLog.pendingAmount * (INTEREST_RATE_PERCENT / 100)) * rounds
+
+        sellLog.interest = interestAmount
+        await sellLog.save()
+      }
+    }
+    await sellLog.load('items')
+
+    return response.json(sellLog)
+  }
+
+  // 3. ปิด Credit (CloseCredit)
+  public async closeCredit({ params, response }: HttpContextContract) {
+    const trx = await Database.transaction()
+
+    try {
+      const sellLog = await SellLog.findOrFail(params.id)
+      sellLog.isPaid = true
+      sellLog.useTransaction(trx)
+      await sellLog.save()
+
+      // 2. อัปเดต SellLogItems (Items) ที่เป็นลูกของบิลนี้ทั้งหมด
+      await SellLogItem.query({ client: trx })
+        .where('sell_log_id', sellLog.id)
+        .update({ is_paid: true })
+
+      await trx.commit()
+
+      return response.json({ message: 'Credit closed successfully', data: sellLog })
+    } catch (error) {
+      await trx.rollback()
+      return response.status(500).json({ message: 'Failed to close credit', error: error.message })
+    }
+  }
+
+  public async summaryCredit({ response }: HttpContextContract) {
+    console.log('Generating credit summary report...')
+    const summaries = await Database
+      .from('sell_logs')
+      .select('truck_name')
+      
+      // --- กลุ่มที่ยังไม่จ่าย (is_paid = 0 หรือ false) ---
+      // 1. ยอดรวม Pending Amount
+      .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN pending_amount ELSE 0 END) as total_unpaid_amount'))
+      // 2. จำนวนบิล
+      .select(Database.raw('COUNT(CASE WHEN is_paid = 0 THEN 1 END) as count_unpaid_bills'))
+      // 3. ยอดรวม Interest
+      .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN interest ELSE 0 END) as total_unpaid_interest'))
+
+      // --- กลุ่มที่จ่ายแล้ว (is_paid = 1 หรือ true) ---
+      // 4. ยอดรวมทั้งหมด (ใช้ total_sold_price คือยอดขายจริงที่ปิดยอดได้)
+      .select(Database.raw('SUM(CASE WHEN is_paid = 1 THEN total_sold_price ELSE 0 END) as total_paid_amount'))
+      // 5. จำนวนบิล
+      .select(Database.raw('COUNT(CASE WHEN is_paid = 1 THEN 1 END) as count_paid_bills'))
+      // 6. ยอดรวม Interest
+      .select(Database.raw('SUM(CASE WHEN is_paid = 1 THEN interest ELSE 0 END) as total_paid_interest'))
+
+      // กรองเฉพาะที่มีชื่อรถ และ Group ตามชื่อ
+      .whereNotNull('truck_name') 
+      .groupBy('truck_name')
+      .orderBy('truck_name', 'asc')
+
+    // แปลงตัวเลขที่อาจจะออกมาเป็น String (ขึ้นอยู่กับ Driver DB) ให้เป็น Number
+    const formattedData = summaries.map((item) => ({
+      truck_name: item.truck_name,
+      
+      // Unpaid Group
+      total_unpaid_amount: Number(item.total_unpaid_amount || 0),
+      count_unpaid_bills: Number(item.count_unpaid_bills || 0),
+      total_unpaid_interest: Number(item.total_unpaid_interest || 0),
+      
+      // Paid Group
+      total_paid_amount: Number(item.total_paid_amount || 0),
+      count_paid_bills: Number(item.count_paid_bills || 0),
+      total_paid_interest: Number(item.total_paid_interest || 0),
+    }))
+
+    return response.json(formattedData)
+  }
 }
