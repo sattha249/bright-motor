@@ -201,6 +201,7 @@ public async store({ request, response, auth }: HttpContextContract) {
 
     const query = SellLog.query()
       .where('is_paid', false) // ดึงเฉพาะบิลที่ยังไม่จ่าย
+      .preload('customer')
       // .whereNotNull('is_credit') // (Option) ถ้าอยากกรองเฉพาะที่มีค่า credit
       .orderBy('created_at', 'desc')
 
@@ -220,7 +221,7 @@ public async store({ request, response, auth }: HttpContextContract) {
 
   // 2. แสดงรายละเอียด Credit และคำนวณดอกเบี้ย (ShowCredit)
   public async showCredit({ params, response }: HttpContextContract) {
-    const sellLog = await SellLog.findOrFail(params.id)
+    const sellLog = await SellLog.query().where('id', params.id).preload('customer').preload('items').firstOrFail()
 
     // ตรวจสอบเงื่อนไข: ยังไม่จ่าย และ เป็นเคสเครดิต
     if (!sellLog.isPaid && sellLog.isCredit && CREDIT_PERIOD[sellLog.isCredit]) {
@@ -288,8 +289,8 @@ public async store({ request, response, auth }: HttpContextContract) {
       .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN interest ELSE 0 END) as total_unpaid_interest'))
 
       // --- กลุ่มที่จ่ายแล้ว (is_paid = 1 หรือ true) ---
-      // 4. ยอดรวมทั้งหมด (ใช้ total_sold_price คือยอดขายจริงที่ปิดยอดได้)
-      .select(Database.raw('SUM(CASE WHEN is_paid = 1 THEN total_sold_price ELSE 0 END) as total_paid_amount'))
+      // 4. ยอดรวมทั้งหมด (ใช้ pending_amount คือยอดเครดิตที่ปิดได้)
+      .select(Database.raw('SUM(CASE WHEN is_paid = 1 THEN pending_amount ELSE 0 END) as total_paid_amount'))
       // 5. จำนวนบิล
       .select(Database.raw('COUNT(CASE WHEN is_paid = 1 THEN 1 END) as count_paid_bills'))
       // 6. ยอดรวม Interest
