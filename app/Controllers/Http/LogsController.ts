@@ -88,7 +88,7 @@ public async store({ request, response, auth }: HttpContextContract) {
 
       if (item.is_paid === false) {
         isBillPaid = false 
-        calculatedPendingAmount += ((itemSoldPrice - item.discount) * itemQty)
+        calculatedPendingAmount += ((itemSoldPrice) * itemQty)
       }
     })
 
@@ -223,16 +223,13 @@ public async store({ request, response, auth }: HttpContextContract) {
   public async showCredit({ params, response }: HttpContextContract) {
     const sellLog = await SellLog.query().where('id', params.id).preload('customer').preload('items').firstOrFail()
 
-    // ตรวจสอบเงื่อนไข: ยังไม่จ่าย และ เป็นเคสเครดิต
     if (!sellLog.isPaid && sellLog.isCredit && CREDIT_PERIOD[sellLog.isCredit]) {
       
       const periodDays = CREDIT_PERIOD[sellLog.isCredit] // 7 หรือ 24
       
-      // แปลง createdAt ของ Adonis (Luxon) เป็น Moment object
       const createdAt = moment(sellLog.createdAt.toJSDate())
       const now = moment()
       
-      // หาผลต่างจำนวนวัน
       const diffDays = now.diff(createdAt, 'days')
 
       // หากจำนวนวันเกินกำหนด (อย่างน้อย 1 รอบ)
