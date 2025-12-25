@@ -68,7 +68,7 @@ public async store({ request, response, auth }: HttpContextContract) {
       'totalDiscount', 'totalSoldPrice', 'isCredit'
     ])
 
-    let truckName = ''
+    let truckName = 'โกดัง' // default
     if (data.truckId) {
       const truck = await Truck.find(data.truckId)
       if (truck && truck.userId) {
