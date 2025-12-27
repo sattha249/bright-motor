@@ -23,7 +23,7 @@ export default class CustomersController {
 
   public async store({ request, response }: HttpContextContract) {
     const data = request.only([
-      'customerNo', 'name', 'email', 'tel',
+      'customer_no', 'name', 'email', 'tel',
       'address', 'district', 'province', 'postCode', 'country'
     ])
     try {

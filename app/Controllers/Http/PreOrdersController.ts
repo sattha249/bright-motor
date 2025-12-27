@@ -21,7 +21,9 @@ export default class PreOrdersController {
     if (status) {
       query.where('status', status)
     }
-
+    if (request.input('truckId')) {
+      query.where('truck_id', request.input('truckId'))
+    }
     return await query.paginate(page, limit)
   }
 
