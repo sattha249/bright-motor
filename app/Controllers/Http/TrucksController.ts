@@ -3,10 +3,24 @@ import Truck from 'App/Models/Truck'
 import TruckStock from 'App/Models/TruckStock'
 
 export default class TrucksController {
-  public async index({}: HttpContextContract) {
-    return await Truck.query().preload('user')
-  }
+public async index({ request }: HttpContextContract) {
+    const page = request.input('page', 1)
+    const limit = request.input('perPage', 10)
+    const search = request.input('search')
 
+    const query = Truck.query().preload('user')
+
+    if (search) {
+      query.where((q) => {
+        q.where('plate_number', 'like', `%${search}%`)
+         .orWhere('plate_province', 'like', `%${search}%`)
+         // เพิ่มค้นหารุ่นรถด้วยก็ได้ถ้าต้องการ
+         .orWhere('model', 'like', `%${search}%`)
+      })
+    }
+
+    return await query.paginate(page, limit)
+  }
   public async store({ request }: HttpContextContract) {
     const data = request.only(['plateNumber', 'userId', 'plateProvince', 'model', 'loadCapacity'])
     let existTruck = await Truck.query().where('plateNumber', data.plateNumber).first()
