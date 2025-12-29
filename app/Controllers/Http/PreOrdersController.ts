@@ -169,4 +169,28 @@ export default class PreOrdersController {
       return response.badRequest({ message: error.message })
     }
   }
+
+  public async confirm({ params, response }: HttpContextContract) {
+    const preOrder = await PreOrder.findOrFail(params.id)
+
+    if (preOrder.status !== 'Pending') {
+      return response.badRequest({ message: 'ยืนยันได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น' })
+    }
+
+    preOrder.status = 'Completed'
+    await preOrder.save()
+
+    return response.ok({ message: 'ยืนยันการจัดส่งเรียบร้อย' })
+  }
+
+  // GET /pre-orders/sync/:truckId (สำหรับรถดึงข้อมูลใบงาน) ทำเผื่อไว้ก่อนจ้า
+  // public async syncForTruck({ params }: HttpContextContract) {
+  //   const preOrders = await PreOrder.query()
+  //     .where('truck_id', params.truckId)
+  //     .andWhere('status', 'Pending')
+  //     .preload('items', (q) => q.preload('product'))
+  //     .preload('customer')
+  //     .orderBy('created_at', 'asc')
+  //   return preOrders
+  // }
 }
