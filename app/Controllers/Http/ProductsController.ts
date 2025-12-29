@@ -68,4 +68,20 @@ export default class ProductsController {
     await product.delete()
     return { message: 'Deleted successfully' }
   }
+
+  public async validateCodes({ request, response }: HttpContextContract) {
+    const codes = request.input('codes', [])
+    
+    if (!codes || codes.length === 0) {
+      return response.ok([])
+    }
+
+    // ค้นหาสินค้าที่มีรหัสตรงกับใน list
+    const products = await Product.query()
+      .whereIn('product_code', codes)
+      .select('id', 'product_code', 'description', 'brand', 'unit') // เลือกเฉพาะ field ที่จำเป็น
+
+    return response.ok(products)
+  }
+  
 }
