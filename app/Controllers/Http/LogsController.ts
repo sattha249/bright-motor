@@ -206,6 +206,7 @@ public async store({ request, response, auth }: HttpContextContract) {
       .orderBy('created_at', 'desc')
 
     if (search) {
+      if (search !== 'ไม่ระบุรถ'){
       query.where((q) => {
         q.where('bill_no', 'like', `%${search}%`)
          .orWhere('truck_name', 'like', `%${search}%`)
@@ -213,6 +214,10 @@ public async store({ request, response, auth }: HttpContextContract) {
            cQuery.where('name', 'like', `%${search}%`)
          })
       })
+      }
+      else{
+        query.where('truck_id', 0) // if send "ไม่ระบุรถ", filter truck_id = 0 (mean warehouse ja)
+      }
     }
 
     const results = await query.paginate(page, limit)
@@ -271,43 +276,52 @@ public async store({ request, response, auth }: HttpContextContract) {
     }
   }
 
-  public async summaryCredit({ response }: HttpContextContract) {
+  public async summaryCredit({ request, response }: HttpContextContract) {
     console.log('Generating credit summary report...')
-    const summaries = await Database
-      .from('sell_logs')
-      .select('truck_name')
-      
-      // --- กลุ่มที่ยังไม่จ่าย (is_paid = 0 หรือ false) ---
-      // 1. ยอดรวม Pending Amount
-      .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN pending_amount ELSE 0 END) as total_unpaid_amount'))
-      // 2. จำนวนบิล
-      .select(Database.raw('COUNT(CASE WHEN is_paid = 0 THEN 1 END) as count_unpaid_bills'))
-      // 3. ยอดรวม Interest
-      .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN interest ELSE 0 END) as total_unpaid_interest'))
+    
+    // 1. Get the 'groupBy' parameter from the request query string
+    const groupBy = request.input('groupBy', 'truck') // default to 'truck'
 
-      // --- กลุ่มที่จ่ายแล้ว (is_paid = 1 หรือ true) ---
-      // 4. ยอดรวมทั้งหมด (ใช้ pending_amount คือยอดเครดิตที่ปิดได้)
+    // 2. Start the query builder
+    const query = Database.from('sell_logs')
+
+    // 3. Conditional Selection and Grouping
+    if (groupBy === 'customer') {
+      // Join with customers table to get names
+      query
+        .leftJoin('customers', 'sell_logs.customer_id', 'customers.id')
+        .select('customers.name as group_name') // Alias as group_name for consistent frontend mapping
+        .groupBy('customers.name')
+        .orderBy('customers.name', 'asc')
+    } else {
+      // Default: Group by Truck Name
+      query
+        .select('truck_name as group_name') // Alias as group_name
+        .whereNotNull('truck_name')
+        .groupBy('truck_name')
+        .orderBy('truck_name', 'asc')
+    }
+
+    // 4. Select Aggregates (Common logic)
+    const summaries = await query
+      // --- Unpaid Group (is_paid = 0) ---
+      .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN pending_amount ELSE 0 END) as total_unpaid_amount'))
+      .select(Database.raw('COUNT(CASE WHEN is_paid = 0 THEN 1 END) as count_unpaid_bills'))
+      .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN interest ELSE 0 END) as total_unpaid_interest'))
+      
+      // --- Paid Group (is_paid = 1) ---
       .select(Database.raw('SUM(CASE WHEN is_paid = 1 THEN pending_amount ELSE 0 END) as total_paid_amount'))
-      // 5. จำนวนบิล
       .select(Database.raw('COUNT(CASE WHEN is_paid = 1 THEN 1 END) as count_paid_bills'))
-      // 6. ยอดรวม Interest
       .select(Database.raw('SUM(CASE WHEN is_paid = 1 THEN interest ELSE 0 END) as total_paid_interest'))
 
-      // กรองเฉพาะที่มีชื่อรถ และ Group ตามชื่อ
-      .whereNotNull('truck_name') 
-      .groupBy('truck_name')
-      .orderBy('truck_name', 'asc')
-
-    // แปลงตัวเลขที่อาจจะออกมาเป็น String (ขึ้นอยู่กับ Driver DB) ให้เป็น Number
+    // 5. Format Data
     const formattedData = summaries.map((item) => ({
-      truck_name: item.truck_name,
+      group_name: item.group_name || (groupBy === 'customer' ? 'ไม่ระบุลูกค้า' : 'ไม่ระบุรถ'), // Handle nulls
       
-      // Unpaid Group
       total_unpaid_amount: Number(item.total_unpaid_amount || 0),
       count_unpaid_bills: Number(item.count_unpaid_bills || 0),
       total_unpaid_interest: Number(item.total_unpaid_interest || 0),
       
-      // Paid Group
       total_paid_amount: Number(item.total_paid_amount || 0),
       count_paid_bills: Number(item.count_paid_bills || 0),
       total_paid_interest: Number(item.total_paid_interest || 0),
