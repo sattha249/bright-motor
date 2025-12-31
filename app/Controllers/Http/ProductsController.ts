@@ -21,7 +21,7 @@ export default class ProductsController {
     return await query.orderBy('id', 'desc').paginate(Number(page), Number(perPage))
   }
 
-  public async store({ request }: HttpContextContract) {
+  public async store({ request,response }: HttpContextContract) {
     const data = request.only([
       'product_code',
       'category',
@@ -33,8 +33,39 @@ export default class ProductsController {
       'unit',
       'zone'
     ])
-
+    // check duplicate product code first
+    const existingProduct = await Product.findBy('product_code', data.product_code)
+    if (existingProduct) {
+      return response.status(401).json({success:false, message: 'Product code already exists' })
+    }
     return await Product.create(data)
+  }
+
+  // new api for bulk insert products from csv
+  public async bulkStore({ request,response }: HttpContextContract) {
+    const products = request.input('products', [])
+    const createdProducts: Product[] = []
+    const mapProductCode = products.map(el => el.product_code)
+    const existingProducts = await Product.query().whereIn('product_code', mapProductCode).select('product_code')
+    const duplicateProducts = existingProducts.map(el => el.productCode)
+    if (duplicateProducts.length > 0) {
+      return response.status(401).json({success:false, message: 'Some product codes already exist', duplicateProducts } )
+    }
+    for (const item of products) {
+        const newProduct = await Product.create({
+          productCode: item.product_code,
+          category: item.category,
+          description: item.description,
+          brand: item.brand,
+          model: item.model,
+          costPrice: item.cost_price,
+          sellPrice: item.sell_price,
+          unit: item.unit,
+          zone: item.zone
+        })
+        createdProducts.push(newProduct)
+      }
+    return { createdProducts }
   }
 
   public async show({ params }: HttpContextContract) {
