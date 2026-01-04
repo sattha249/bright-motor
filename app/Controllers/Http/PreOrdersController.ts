@@ -2,6 +2,7 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import PreOrder from 'App/Models/PreOrder'
 import WarehouseStock from 'App/Models/WarehouseStock'
+import PreOrderItem from 'App/Models/PreOrderItem'
 import TruckStock from 'App/Models/TruckStock' // คุณต้องมี Model นี้สำหรับสต็อกบนรถ
 
 export default class PreOrdersController {
@@ -70,8 +71,8 @@ export default class PreOrdersController {
           quantity: item.quantity,
           price: item.price,
           discount: item.discount,
-          soldPrice: item.sold_price,
-          isPaid: item.is_paid
+          soldPrice: item.soldPrice,
+          isPaid: item.isPaid
         }, { client: trx })
 
         // 2.2 DEDUCT from Warehouse (ตัดจากโกดัง)
@@ -193,4 +194,71 @@ export default class PreOrdersController {
   //     .orderBy('created_at', 'asc')
   //   return preOrders
   // }
+
+
+  public async update({ params, request, response }: HttpContextContract) {
+  const trx = await Database.transaction()
+  try {
+    const preOrder = await PreOrder.findOrFail(params.id)
+    // 1. คืนสต็อกเดิมกลับเข้า Warehouse (Revert Stock)
+    const oldItems = await PreOrderItem.query().where('pre_order_id', preOrder.id)
+    for (const item of oldItems) {
+      const stock = await WarehouseStock.query()
+        .where('product_id', item.productId)
+        .first()
+      
+      if (stock) {
+        stock.quantity += item.quantity // คืนยอด
+        await stock.save() // หรือ use transaction: stock.useTransaction(trx).save()
+      }
+    }
+
+    // 2. ลบรายการสินค้าเดิมออก
+    await PreOrderItem.query().where('pre_order_id', preOrder.id).delete()
+
+    // 3. รับข้อมูลใหม่
+    const { truckId, customerId, isCredit, items, totalSoldPrice } = request.all()
+
+    // 4. อัปเดตข้อมูล Header
+    preOrder.truckId = truckId
+    preOrder.customerId = customerId
+    preOrder.isCredit = isCredit
+    preOrder.totalSoldPrice = totalSoldPrice
+    preOrder.totalPrice = totalSoldPrice // สมมติว่าเท่ากันถ้าไม่มีส่วนลดท้ายบิล
+    await preOrder.save()
+
+    // 5. สร้างรายการใหม่ และ ตัดสต็อกใหม่ (Process New Items)
+    for (const item of items) {
+      // ตัดสต็อกใหม่
+      const stock = await WarehouseStock.query()
+        .where('product_id', item.productId)
+        .first()
+
+      if (!stock || stock.quantity < item.quantity) {
+        throw new Error(`สินค้า ${item.description} มีไม่พอในคลัง (เหลือ ${stock?.quantity || 0})`)
+      }
+
+      stock.quantity -= item.quantity
+      await stock.save()
+
+      // สร้าง Item ใหม่
+      await PreOrderItem.create({
+        preOrderId: preOrder.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+        soldPrice: item.soldPrice,
+        discount: item.discount,
+        isPaid: item.isPaid
+      })
+    }
+
+    await trx.commit()
+    return response.json({ message: 'Update success', id: preOrder.id })
+
+  } catch (error) {
+    await trx.rollback()
+    return response.status(500).json({ message: error.message })
+  }
+}
 }

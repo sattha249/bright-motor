@@ -4,6 +4,7 @@ Route.group(() => {
   Route.get('/', 'PreOrdersController.index')     
   Route.get('/:id', 'PreOrdersController.show')  
   Route.post('/', 'PreOrdersController.store') 
+  Route.put('/:id', 'PreOrdersController.update')
   Route.post('/:id/confirm', 'PreOrdersController.confirm')
   Route.post('/:id/cancel', 'PreOrdersController.cancel') 
   Route.get('/sync/:truckId', 'PreOrdersController.syncForTruck')

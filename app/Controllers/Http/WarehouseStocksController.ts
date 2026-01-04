@@ -18,6 +18,7 @@ export default class WarehouseStocksController {
       query.whereHas('product', (builder) => {
         builder
         .whereILike('description', `%${search}%`)
+         .orWhereILike('category', `%${search}%`)
          .orWhereILike('brand', `%${search}%`)
          .orWhereILike('model', `%${search}%`)
       })
