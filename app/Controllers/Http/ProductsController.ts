@@ -12,7 +12,7 @@ export default class ProductsController {
     if (search) {
       query.where((q) => {
         q.whereILike('description', `%${search}%`)
-          .orWhereLike('category', `%${search}%`)
+         .orWhereILike('category', `%${search}%`)
          .orWhereILike('product_code', `%${search}%`)
          .orWhereILike('brand', `%${search}%`)
          .orWhereILike('model', `%${search}%`)
