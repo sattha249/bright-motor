@@ -22,7 +22,9 @@ export default class SellLogsController {
     const endDate = request.input('end_date')
 
     const query = SellLog.query()
-      .preload('items')
+      .preload('items',(itemQuery)=>{
+        itemQuery.preload('product')
+      })
       .preload('customer')
       .preload('truck')
 
@@ -55,7 +57,9 @@ export default class SellLogsController {
   public async show({ params }: HttpContextContract) {
     const sellLog = await SellLog.query()
       .where('id', params.id)
-      .preload('items')
+      .preload('items',(itemQuery)=>{
+        itemQuery.preload('product')
+      })
       .preload('customer')
       .preload('truck')
       .firstOrFail()
