@@ -7,4 +7,4 @@ Route.group(() => {
   Route.get('/:productId', 'WarehouseStocksController.show')
   Route.post('/import', 'WarehouseStocksController.import')
   Route.post('/move-to-truck', 'WarehouseStocksController.moveToTruck')
-}).prefix('warehouse-stocks').middleware(['auth'])
+}).prefix('warehouse-stocks').middleware(['auth','requestLogger'])

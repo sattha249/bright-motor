@@ -10,4 +10,4 @@ Route.group(() => {
   Route.delete('/:id', 'TrucksController.destroy') 
 // POST /truck/return-to-warehouse → คืนสินค้าเก่ากลับคลัง
 // POST /truck/replace-product → เปลี่ยนสินค้า (สินค้า A → B)
-}).prefix('trucks').middleware(['auth'])
+}).prefix('trucks').middleware(['auth','requestLogger'])

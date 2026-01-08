@@ -8,4 +8,4 @@ Route.group(() => {
   Route.post('/:id/confirm', 'PreOrdersController.confirm')
   Route.post('/:id/cancel', 'PreOrdersController.cancel') 
   Route.get('/sync/:truckId', 'PreOrdersController.syncForTruck')
-}).prefix('/pre-orders').middleware('auth')
+}).prefix('/pre-orders').middleware(['auth','requestLogger'])

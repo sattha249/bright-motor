@@ -7,4 +7,4 @@ Route.group(() => {
   Route.get('/:id', 'CustomersController.show')
   Route.put('/:id', 'CustomersController.update')
   Route.delete('/:id', 'CustomersController.destroy')
-}).prefix('/customers').middleware(['auth'])
+}).prefix('/customers').middleware(['auth','requestLogger'])

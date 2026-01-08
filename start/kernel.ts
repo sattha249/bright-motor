@@ -29,4 +29,5 @@ Server.middleware.registerNamed({
   auth: () => import('App/Middleware/Auth'),
   checksell: () => import('App/Middleware/Checksell'),
   checkstock: () => import('App/Middleware/Checkstock'),
+  requestLogger: () => import('App/Middleware/RequestLogger'),
 })
