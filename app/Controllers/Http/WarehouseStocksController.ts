@@ -80,7 +80,7 @@ export default class WarehouseStocksController {
     const warehouseStock = await WarehouseStock.query()
       .where('product_id', product.productId)
       .firstOrFail()
-
+    console.log('[moveToTruck] product',product.productId, 'warehouseStock of product', warehouseStock.quantity , 'requested quantity', product.quantity)
     if (warehouseStock.quantity < product.quantity) {
       return response.status(400).json({success:false, message: 'ไม่สามารถย้ายสินค้าได้ เนื่องจากปริมาณในโกดังไม่เพียงพอ' })
     }

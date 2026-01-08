@@ -58,7 +58,10 @@ public async index({ request }: HttpContextContract) {
     if (search) {
       query.whereHas('product', (builder) => {
         builder.whereILike('category', `%${search}%`)
+          .orWhereILike('description', `%${search}%`)
           .orWhereILike('brand', `%${search}%`)
+          .orWhereILike('product_code', `%${search}%`)
+          .orWhereILike('model', `%${search}%`)
       })
     }
 
