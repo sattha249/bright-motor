@@ -131,4 +131,64 @@ export default class WarehouseStocksController {
     }
   }
 
+  async moveToWarehouse({ request,response, auth }: HttpContextContract) {
+    const { productId, truckId, quantity } = request.only(['productId', 'truckId','quantity'])
+    if (auth.user?.role == 'truck') {
+      return response.status(401).json({success:false, message: 'คุณไม่มีสิทธิ์ในการย้ายสินค้า' })
+    }
+    try{
+    let createdStocks  = []
+    // TODO make it to many items
+    const truckStock = await TruckStock.query()
+      .where('truck_id', truckId)
+      .where('product_id', productId)
+      .firstOrFail()
+    console.log('[moveToWarehouse] product',productId, 'truckStock of product', truckStock.quantity , 'requested quantity', quantity)
+    if (truckStock.quantity < quantity) {
+      return response.status(400).json({success:false, message: 'ไม่สามารถย้ายสินค้าได้ เนื่องจากปริมาณในรถไม่เพียงพอ' })
+    }
+
+    // เพิ่มสินค้าลงในโกดัง
+    const warehouseStock = await WarehouseStock.query()
+      .where('product_id', productId)
+      .first()
+    if (warehouseStock) {
+      console.log('warehouseStock', warehouseStock)
+      warehouseStock.quantity += quantity
+      await warehouseStock.save()
+    } else {
+      await WarehouseStock.create({
+        productId:productId,
+        quantity:quantity,
+        updatedBy: auth.user!.id,
+      })
+    }
+
+    // ลดสินค้าในรถ
+    truckStock.quantity -= quantity
+    if (truckStock.quantity <= 0) {
+      await truckStock.delete()
+    }
+    else{
+      await truckStock.save()
+    }
+    createdStocks.push({
+      productId: productId,
+      quantity: quantity,
+      sourceId: truckStock.id,
+      sourceType: 'truck',
+      targetType: 'warehouse',
+      type: 'move',
+      userId: auth.user!.id,
+    })
+
+
+    await StockLog.createMany(createdStocks)
+
+    return response.status(200).json({success:true, message: 'ย้ายสินค้าไปยังโกดังสำเร็จ' })
+    } catch (error) {
+    console.error('Error moving products to warehouse:', error)
+    return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการย้ายสินค้า' })
+    }
+  }
 }
