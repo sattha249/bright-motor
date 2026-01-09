@@ -1,6 +1,7 @@
 // import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Product from 'App/Models/Product'
+// note max_quantity is using for showing percent only , we not limit stock by max_quantity ja
 
 export default class ProductsController {
   public async index({ request }: HttpContextContract) {
@@ -32,7 +33,8 @@ export default class ProductsController {
       'cost_price',
       'sell_price',
       'unit',
-      'zone'
+      'zone',
+      'max_quantity'
     ])
     // check duplicate product code first
     const existingProduct = await Product.findBy('product_code', data.product_code)
@@ -62,7 +64,8 @@ export default class ProductsController {
           costPrice: item.cost_price,
           sellPrice: item.sell_price,
           unit: item.unit,
-          zone: item.zone
+          zone: item.zone,
+          maxQuantity: item.max_quantity || 100
         })
         createdProducts.push(newProduct)
       }
@@ -83,7 +86,8 @@ export default class ProductsController {
       'cost_price',
       'sell_price',
       'unit',
-      'zone'
+      'zone',
+      'max_quantity'
     ])
 
     product.merge(data)
