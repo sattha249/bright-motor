@@ -12,7 +12,7 @@ export default class PreOrdersController {
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const status = request.input('status') // Filter status
-
+    const search = request.input('search') // ค้นหาด้วยเลขบิล หรือ ชื่อลูกค้า
     const query = PreOrder.query()
       .preload('truck')
       .preload('customer')
@@ -24,6 +24,19 @@ export default class PreOrdersController {
     }
     if (request.input('truckId')) {
       query.where('truck_id', request.input('truckId'))
+    }
+    if (search) {
+      //preorder.bill no , customer.name and truck.plate_number
+      query.where((q) => {
+        q.where('bill_no', 'like', `%${search}%`)
+        .orWhereHas('customer', (customerQuery) => {
+          customerQuery.where('name', 'like', `%${search}%`)
+        })
+        .orWhereHas('truck', (truckQuery) => {
+          truckQuery.where('plate_number', 'like', `%${search}%`)
+        })
+      })
+      
     }
     return await query.paginate(page, limit)
   }
