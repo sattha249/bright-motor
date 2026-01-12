@@ -173,8 +173,8 @@ public async store({ request, response, auth }: HttpContextContract) {
 
   public async summary({auth,request,response}){
     try{
-    const startDate = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const endDate = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const startDate = request.input('start_date') || moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
     const sellLogsResult = await SellLog.query()
       .where('created_at', '>=', startDate)
       .where('created_at', '<=', endDate)
