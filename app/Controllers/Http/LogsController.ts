@@ -18,8 +18,8 @@ export default class SellLogsController {
     const search = request.input('search', '')
     
     const truck = request.input('truck_id') 
-    const startDate = request.input('start_date')
-    const endDate = request.input('end_date')
+    const startDate = request.input('start_date') || moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
 
     const query = SellLog.query()
       .preload('items',(itemQuery)=>{
@@ -175,11 +175,27 @@ public async store({ request, response, auth }: HttpContextContract) {
     try{
     const startDate = request.input('start_date') || moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
     const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const sellLogsResult = await SellLog.query()
+    const truck = request.input('truck_id')
+    const search = request.input('search','')
+    let sellogQuery =  SellLog.query()
       .where('created_at', '>=', startDate)
       .where('created_at', '<=', endDate)
-      .sum('total_price as total')
-      .sum('total_discount as discount')
+    
+    if(truck !== null && truck !== undefined && truck !== ''){
+      sellogQuery = sellogQuery.where('truck_id', truck)
+    }
+
+    if (search) {
+      sellogQuery.where((builder) => {
+        builder
+          .whereHas('customer', (customerQuery) => {
+            customerQuery.where('name', 'like', `%${search}%`)
+          })
+          .orWhere('bill_no', 'like', `%${search}%`)
+      })
+    }
+
+    const sellLogsResult = await sellogQuery.sum('total_price as total').sum('total_discount as discount')
     const totalSales = sellLogsResult[0].$extras.total || 0
     const totalDiscount = sellLogsResult[0].$extras.discount || 0
 
