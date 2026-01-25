@@ -77,16 +77,16 @@ export default class PreOrdersController {
       await preOrder.save()
 
       // 2. Process Items & Move Stock
-      // for (const item of data.items) {
+      for (const item of data.items) {
       //   // 2.1 Create Item
-      //   await preOrder.related('items').create({
-      //     productId: item.productId,
-      //     quantity: item.quantity,
-      //     price: item.price,
-      //     discount: item.discount,
-      //     soldPrice: item.soldPrice,
-      //     isPaid: item.isPaid
-      //   }, { client: trx })
+        await preOrder.related('items').create({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount,
+          soldPrice: item.soldPrice,
+          isPaid: item.isPaid
+        }, { client: trx })
 
       //   // 2.2 DEDUCT from Warehouse (ตัดจากโกดัง)
       //   const warehouseStock = await WarehouseStock.query({ client: trx })
@@ -116,7 +116,7 @@ export default class PreOrdersController {
       //       quantity: item.quantity
       //     }, { client: trx })
       //   }
-      // }
+      }
 
       await trx.commit()
       return response.created(preOrder)
