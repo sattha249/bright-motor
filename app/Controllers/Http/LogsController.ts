@@ -9,7 +9,7 @@ import Product from 'App/Models/Product'
 import Truck from 'App/Models/Truck'
 import User from 'App/Models/User'
 const CREDIT_PERIOD = { week: 7 , month: 24} // days
-const INTEREST_RATE_PERCENT = 3 // 3% per selected_period
+const INTEREST_RATE_PERCENT = 8 // 8% per selected_period you can move it to env , but this hard code for example
 
 export default class SellLogsController {
  public async index({ request }) {
