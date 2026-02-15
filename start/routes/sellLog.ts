@@ -10,6 +10,7 @@ Route.get('sell-logs/:id', 'LogsController.show')
 Route.post('sell-logs', 'LogsController.store').middleware(['auth', 'checksell'])
 Route.get('sell-logs/credit/:id','LogsController.showCredit')
 Route.post('sell-logs/credit/:id/pay','LogsController.closeCredit')
+Route.post('/sell-logs/:id/return', 'ReturnsController.returnItems')
 }).middleware(['auth','requestLogger'])
 
 

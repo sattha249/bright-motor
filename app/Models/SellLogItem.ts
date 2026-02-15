@@ -18,6 +18,9 @@ export default class SellLogItem extends BaseModel {
   public quantity: number
 
   @column()
+  public returnedQuantity: number
+
+  @column()
   public price: number
 
   @column()
