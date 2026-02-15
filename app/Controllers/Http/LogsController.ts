@@ -129,7 +129,7 @@ public async store({ request, response, auth }: HttpContextContract) {
         pendingAmount: calculatedPendingAmount, // ยอดค้างชำระที่คำนวณจาก items ที่เป็น false
         isPaid: isBillPaid, // สถานะการจ่ายเงินของบิลหลัก (ต้องมี field นี้ใน DB)
         interest: 0, // default interest
-        isPreOrder: data.isPreOrder || false // ระบุว่าเป็นบิล PreOrder หรือไม่
+        isPreorder: data.isPreOrder || false // ระบุว่าเป็นบิล PreOrder หรือไม่
       }, { client: trx })
 
       // บันทึก Items
