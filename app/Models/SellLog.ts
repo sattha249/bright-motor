@@ -47,6 +47,9 @@ export default class SellLog extends BaseModel {
   @column()
   public userId: number
 
+  @column()
+  public isPreOrder: boolean
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
   

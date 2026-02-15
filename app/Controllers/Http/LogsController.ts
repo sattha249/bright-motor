@@ -18,6 +18,10 @@ export default class SellLogsController {
     const search = request.input('search', '')
     
     const truck = request.input('truck_id') 
+    
+    let includePreOrders = request.input('include_preorder', true)
+    includePreOrders = includePreOrders === 'true' || includePreOrders === true ? true : false
+
     const startDate = request.input('start_date') || moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
     const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
 
@@ -40,6 +44,10 @@ export default class SellLogsController {
 
     if (truck !== null && truck !== undefined && truck !== '') {
       query.where('truck_id', truck)
+      // in case find by truck id , we will check include_preorder flag to filter logsell that have is_preorder = true , false mean query all (use for refill product to truck)
+      if (!includePreOrders) {
+        query.where('is_preorder', false)
+      }
     }
 
     if (startDate) {
