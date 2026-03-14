@@ -10,11 +10,15 @@ import StockLog from 'App/Models/StockLog'
 export default class ReturnController {
 
   public async returnItems({ request, response, auth, params }: HttpContextContract) {
+    console.log('🟢 API DO returnItems', { params, body: request.all() })
     const sellLogId = params.id
     const { items, reason } = request.only(['items', 'reason'])
     const user = auth.user
 
-    if (!user) return response.unauthorized('Please login')
+    if (!user) {
+      console.log('🔴 API RESULT returnItems ERROR', 'Please login')
+      return response.unauthorized('Please login')
+    }
 
     // เริ่ม Transaction
     const trx = await Database.transaction()
@@ -107,12 +111,14 @@ export default class ReturnController {
       await returnLog.save()
 
       await trx.commit()
-
-      return response.json({ message: 'Success', returnLog })
+      const result = { message: 'Success', returnLog }
+      console.log('🔴 API RESULT returnItems', result)
+      return response.json(result)
 
     } catch (error) {
       await trx.rollback()
       console.error(error)
+      console.log('🔴 API RESULT returnItems ERROR', error)
       return response.badRequest({ message: error.message || 'Error processing return' })
     }
   }

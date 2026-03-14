@@ -13,6 +13,7 @@ const INTEREST_RATE_PERCENT = 8 // 8% per selected_period you can move it to env
 
 export default class SellLogsController {
  public async index({ request }) {
+    console.log('🟢 API DO index', request.all())
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const search = request.input('search', '')
@@ -59,10 +60,13 @@ export default class SellLogsController {
     }
 
     query.orderBy('created_at', 'desc')
-    return await query.paginate(page, limit)
+    const result = await query.paginate(page, limit)
+    console.log('🔴 API RESULT index', result)
+    return result
   }
 
   public async show({ params }: HttpContextContract) {
+    console.log('🟢 API DO show', params)
     const sellLog = await SellLog.query()
       .where('id', params.id)
       .preload('items',(itemQuery)=>{
@@ -71,10 +75,12 @@ export default class SellLogsController {
       .preload('customer')
       .preload('truck')
       .firstOrFail()
+    console.log('🔴 API RESULT show', sellLog)
     return sellLog
   }
 
 public async store({ request, response, auth }: HttpContextContract) {
+    console.log('🟢 API DO store', request.all())
     const data = request.only([
       'customerId', 'truckId', 'totalPrice', 'items',
       'totalDiscount', 'totalSoldPrice', 'isCredit', 'isPreOrder'
@@ -148,9 +154,12 @@ public async store({ request, response, auth }: HttpContextContract) {
 
       await trx.commit()
       
-      return response.status(201).json({ billNo: billNo, message: 'Sell log created successfully', data: sellLog })
+      const result = { billNo: billNo, message: 'Sell log created successfully', data: sellLog }
+      console.log('🔴 API RESULT store', result)
+      return response.status(201).json(result)
     } catch (err) {
       await trx.rollback()
+      console.log('🔴 API RESULT store ERROR', err)
       throw err
     }
   }
@@ -181,6 +190,7 @@ public async store({ request, response, auth }: HttpContextContract) {
   }
 
   public async summary({auth,request,response}){
+    console.log('🟢 API DO summary', request.all())
     try{
     const startDate = request.input('start_date') || moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
     const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
@@ -213,17 +223,20 @@ public async store({ request, response, auth }: HttpContextContract) {
 
     const totalProductInStockResult = await WarehouseStock.query().count('* as count')
     const totalProductInStock = totalProductInStockResult[0].$extras.count || 0
-    return response.json({totalSales,totalProduct,totalProductInStock,totalDiscount})
+    const result = {totalSales,totalProduct,totalProductInStock,totalDiscount}
+    console.log('🔴 API RESULT summary', result)
+    return response.json(result)
      
   }
   catch(err){
-    console.log(err)
+    console.log('🔴 API RESULT summary ERROR', err)
     return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล'})
   }
 }
 // credit section
 // 1. แสดงรายการ Credit ทั้งหมด (Index) + Search
   public async indexCredit({ request, response }: HttpContextContract) {
+    console.log('🟢 API DO indexCredit', request.all())
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const search = request.input('search', '')
@@ -250,11 +263,13 @@ public async store({ request, response, auth }: HttpContextContract) {
     }
 
     const results = await query.paginate(page, limit)
+    console.log('🔴 API RESULT indexCredit', results)
     return response.json(results)
   }
 
   // 2. แสดงรายละเอียด Credit และคำนวณดอกเบี้ย (ShowCredit)
   public async showCredit({ params, response }: HttpContextContract) {
+    console.log('🟢 API DO showCredit', params)
     const sellLog = await SellLog.query().where('id', params.id).preload('customer').preload('items').firstOrFail()
 
     if (!sellLog.isPaid && sellLog.isCredit && CREDIT_PERIOD[sellLog.isCredit]) {
@@ -278,11 +293,13 @@ public async store({ request, response, auth }: HttpContextContract) {
     }
     await sellLog.load('items')
 
+    console.log('🔴 API RESULT showCredit', sellLog)
     return response.json(sellLog)
   }
 
   // 3. ปิด Credit (CloseCredit)
   public async closeCredit({ params, response }: HttpContextContract) {
+    console.log('🟢 API DO closeCredit', params)
     const trx = await Database.transaction()
 
     try {
@@ -298,14 +315,18 @@ public async store({ request, response, auth }: HttpContextContract) {
 
       await trx.commit()
 
-      return response.json({ message: 'Credit closed successfully', data: sellLog })
+      const result = { message: 'Credit closed successfully', data: sellLog }
+      console.log('🔴 API RESULT closeCredit', result)
+      return response.json(result)
     } catch (error) {
       await trx.rollback()
+      console.log('🔴 API RESULT closeCredit ERROR', error)
       return response.status(500).json({ message: 'Failed to close credit', error: error.message })
     }
   }
 
   public async summaryCredit({ request, response }: HttpContextContract) {
+    console.log('🟢 API DO summaryCredit', request.all())
     console.log('Generating credit summary report...')
     
     // 1. Get the 'groupBy' parameter from the request query string
@@ -356,6 +377,7 @@ public async store({ request, response, auth }: HttpContextContract) {
       total_paid_interest: Number(item.total_paid_interest || 0),
     }))
 
+    console.log('🔴 API RESULT summaryCredit', formattedData)
     return response.json(formattedData)
   }
 }

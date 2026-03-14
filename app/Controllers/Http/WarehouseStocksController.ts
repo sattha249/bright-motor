@@ -7,6 +7,7 @@ import StockLog from 'App/Models/StockLog'
 
 export default class WarehouseStocksController {
   public async index({ request }) {
+    console.log('🟢 API DO index', request.all())
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const orderBy = request.input('orderBy','quantity')
@@ -24,18 +25,26 @@ export default class WarehouseStocksController {
       })
     }
     query.orderBy(orderBy,sort)
-    return await query.paginate(page, limit)
+    const result = await query.paginate(page, limit)
+    console.log('🔴 API RESULT index', result)
+    return result
   }
 
   public async show({ params }: HttpContextContract) {
-    return await WarehouseStock.query().where('product_id', params.productId).preload('product')
+    console.log('🟢 API DO show', params)
+    const result = await WarehouseStock.query().where('product_id', params.productId).preload('product')
+    console.log('🔴 API RESULT show', result)
+    return result
   }
 
   public async import({ request, auth , response }: HttpContextContract) {
+    console.log('🟢 API DO import', request.all())
     const { products } = request.only(['products'])
     const user = auth.user!
     if (user.role !== 'admin' && user.role !== 'warehouse') {
-       return response.status(500).json({success: false, message: 'คุณไม่มีสิทธิ์ในการนำเข้าสินค้า' })
+       const errorResult = {success: false, message: 'คุณไม่มีสิทธิ์ในการนำเข้าสินค้า' }
+       console.log('🔴 API RESULT import ERROR', errorResult)
+       return response.status(500).json(errorResult)
     }
     try{
     let createdStocks = []
@@ -61,17 +70,24 @@ export default class WarehouseStocksController {
 
     }
     await StockLog.createMany(createdStocks)
-    return { success: true, message: 'นำเข้าสินค้าเรียบร้อยแล้ว' ,detail : createdStocks }
+    const result = { success: true, message: 'นำเข้าสินค้าเรียบร้อยแล้ว' ,detail : createdStocks }
+    console.log('🔴 API RESULT import', result)
+    return result
     }catch(err){
       console.log(err)
-      return response.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการนำเข้าสินค้า' })
+      const errorResult = { success: false, message: 'เกิดข้อผิดพลาดในการนำเข้าสินค้า' }
+      console.log('🔴 API RESULT import ERROR', err)
+      return response.status(500).json(errorResult)
     }
   }
 
   public async moveToTruck({ request,response, auth }: HttpContextContract) {
+    console.log('🟢 API DO moveToTruck', request.all())
     const { products, truckId } = request.only(['products', 'truckId'])
     if (auth.user?.role == 'truck') {
-      return response.status(401).json({success:false, message: 'คุณไม่มีสิทธิ์ในการย้ายสินค้า' })
+      const errorResult = {success:false, message: 'คุณไม่มีสิทธิ์ในการย้ายสินค้า' }
+      console.log('🔴 API RESULT moveToTruck ERROR', errorResult)
+      return response.status(401).json(errorResult)
     }
     try{
     let createdStocks  = []
@@ -82,7 +98,9 @@ export default class WarehouseStocksController {
       .firstOrFail()
     console.log('[moveToTruck] product',product.productId, 'warehouseStock of product', warehouseStock.quantity , 'requested quantity', product.quantity)
     if (warehouseStock.quantity < product.quantity) {
-      return response.status(400).json({success:false, message: 'ไม่สามารถย้ายสินค้าได้ เนื่องจากปริมาณในโกดังไม่เพียงพอ' })
+      const errorResult = {success:false, message: 'ไม่สามารถย้ายสินค้าได้ เนื่องจากปริมาณในโกดังไม่เพียงพอ' }
+      console.log('🔴 API RESULT moveToTruck ERROR', errorResult)
+      return response.status(400).json(errorResult)
     }
 
 
@@ -124,17 +142,23 @@ export default class WarehouseStocksController {
 
     await StockLog.createMany(createdStocks)
 
-    return response.status(200).json({success:true, message: 'ย้ายสินค้าไปยังรถสำเร็จ' })
+    const result = {success:true, message: 'ย้ายสินค้าไปยังรถสำเร็จ' }
+    console.log('🔴 API RESULT moveToTruck', result)
+    return response.status(200).json(result)
     } catch (error) {
     console.error('Error moving products to truck:', error)
+    console.log('🔴 API RESULT moveToTruck ERROR', error)
     return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการย้ายสินค้า' })
     }
   }
 
   async moveToWarehouse({ request,response, auth }: HttpContextContract) {
+    console.log('🟢 API DO moveToWarehouse', request.all())
     const { productId, truckId, quantity } = request.only(['productId', 'truckId','quantity'])
     if (auth.user?.role == 'truck') {
-      return response.status(401).json({success:false, message: 'คุณไม่มีสิทธิ์ในการย้ายสินค้า' })
+      const errorResult = {success:false, message: 'คุณไม่มีสิทธิ์ในการย้ายสินค้า' }
+      console.log('🔴 API RESULT moveToWarehouse ERROR', errorResult)
+      return response.status(401).json(errorResult)
     }
     try{
     let createdStocks  = []
@@ -145,7 +169,9 @@ export default class WarehouseStocksController {
       .firstOrFail()
     console.log('[moveToWarehouse] product',productId, 'truckStock of product', truckStock.quantity , 'requested quantity', quantity)
     if (truckStock.quantity < quantity) {
-      return response.status(400).json({success:false, message: 'ไม่สามารถย้ายสินค้าได้ เนื่องจากปริมาณในรถไม่เพียงพอ' })
+      const errorResult = {success:false, message: 'ไม่สามารถย้ายสินค้าได้ เนื่องจากปริมาณในรถไม่เพียงพอ' }
+      console.log('🔴 API RESULT moveToWarehouse ERROR', errorResult)
+      return response.status(400).json(errorResult)
     }
 
     // เพิ่มสินค้าลงในโกดัง
@@ -185,9 +211,12 @@ export default class WarehouseStocksController {
 
     await StockLog.createMany(createdStocks)
 
-    return response.status(200).json({success:true, message: 'ย้ายสินค้าไปยังโกดังสำเร็จ' })
+    const result = {success:true, message: 'ย้ายสินค้าไปยังโกดังสำเร็จ' }
+    console.log('🔴 API RESULT moveToWarehouse', result)
+    return response.status(200).json(result)
     } catch (error) {
     console.error('Error moving products to warehouse:', error)
+    console.log('🔴 API RESULT moveToWarehouse ERROR', error)
     return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการย้ายสินค้า' })
     }
   }

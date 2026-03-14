@@ -9,6 +9,7 @@ export default class PreOrdersController {
 
   // GET /pre-orders (List Dashboard)
   public async index({ request }: HttpContextContract) {
+    console.log('🟢 API DO index', request.all())
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const status = request.input('status') // Filter status
@@ -38,21 +39,27 @@ export default class PreOrdersController {
       })
       
     }
-    return await query.paginate(page, limit)
+    const result = await query.paginate(page, limit)
+    console.log('🔴 API RESULT index', result)
+    return result
   }
 
   // GET /pre-orders/:id (Detail)
   public async show({ params }: HttpContextContract) {
-    return await PreOrder.query()
+    console.log('🟢 API DO show', params)
+    const result = await PreOrder.query()
       .where('id', params.id)
       .preload('items', (q) => q.preload('product'))
       .preload('truck')
       .preload('customer')
       .firstOrFail()
+    console.log('🔴 API RESULT show', result)
+    return result
   }
 
   // POST /pre-orders (Create & Transfer Stock)
   public async store({ request, auth, response }: HttpContextContract) {
+    console.log('🟢 API DO store', request.all())
     const data = request.all()
     // data structure same as sell-logs: truckId, customerId, items[], ...
 
@@ -119,19 +126,23 @@ export default class PreOrdersController {
       }
 
       await trx.commit()
+      console.log('🔴 API RESULT store', preOrder)
       return response.created(preOrder)
 
     } catch (error) {
       await trx.rollback()
+      console.log('🔴 API RESULT store ERROR', error)
       return response.badRequest({ message: error.message })
     }
   }
 
   // POST /pre-orders/:id/cancel (Cancel & Reverse Stock)
   public async cancel({ params, response }: HttpContextContract) {
+    console.log('🟢 API DO cancel', params)
     const preOrder = await PreOrder.findOrFail(params.id)
 
     if (preOrder.status !== 'Pending') {
+      console.log('🔴 API RESULT cancel ERROR', 'ยกเลิกได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น')
       return response.badRequest({ message: 'ยกเลิกได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น' })
     }
 
@@ -176,25 +187,32 @@ export default class PreOrdersController {
       }
 
       await trx.commit()
-      return response.ok({ message: 'ยกเลิกใบงานและดึงของกลับโกดังเรียบร้อย' })
+      const result = { message: 'ยกเลิกใบงานและดึงของกลับโกดังเรียบร้อย' }
+      console.log('🔴 API RESULT cancel', result)
+      return response.ok(result)
 
     } catch (error) {
       await trx.rollback()
+      console.log('🔴 API RESULT cancel ERROR', error)
       return response.badRequest({ message: error.message })
     }
   }
 
   public async confirm({ params, response }: HttpContextContract) {
+    console.log('🟢 API DO confirm', params)
     const preOrder = await PreOrder.findOrFail(params.id)
 
     if (preOrder.status !== 'Pending') {
+      console.log('🔴 API RESULT confirm ERROR', 'ยืนยันได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น')
       return response.badRequest({ message: 'ยืนยันได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น' })
     }
 
     preOrder.status = 'Completed'
     await preOrder.save()
 
-    return response.ok({ message: 'ยืนยันการจัดส่งเรียบร้อย' })
+    const result = { message: 'ยืนยันการจัดส่งเรียบร้อย' }
+    console.log('🔴 API RESULT confirm', result)
+    return response.ok(result)
   }
 
   // GET /pre-orders/sync/:truckId (สำหรับรถดึงข้อมูลใบงาน) ทำเผื่อไว้ก่อนจ้า
@@ -210,8 +228,9 @@ export default class PreOrdersController {
 
 
   public async update({ params, request, response }: HttpContextContract) {
-  const trx = await Database.transaction()
-  try {
+    console.log('🟢 API DO update', { params, body: request.all() })
+    const trx = await Database.transaction()
+    try {
     const preOrder = await PreOrder.findOrFail(params.id)
     // 1. คืนสต็อกเดิมกลับเข้า Warehouse (Revert Stock)
     const oldItems = await PreOrderItem.query().where('pre_order_id', preOrder.id)
@@ -267,10 +286,13 @@ export default class PreOrdersController {
     }
 
     await trx.commit()
-    return response.json({ message: 'Update success', id: preOrder.id })
+    const result = { message: 'Update success', id: preOrder.id }
+    console.log('🔴 API RESULT update', result)
+    return response.json(result)
 
   } catch (error) {
     await trx.rollback()
+    console.log('🔴 API RESULT update ERROR', error)
     return response.status(500).json({ message: error.message })
   }
 }

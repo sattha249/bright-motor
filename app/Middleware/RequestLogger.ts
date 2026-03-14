@@ -5,13 +5,9 @@ export default class RequestLogger {
     { request, auth }: HttpContextContract,
     next: () => Promise<void>
   ) {
-    const body = request.body()
-    delete body.password
-    delete body.token
     console.log('--- Incoming Request ---')
     console.log('Path:', request.url())
     console.log('Method:', request.method())
-    console.log('Body:', body)
 
     // Auth info (safe access)
     if (auth.user) {

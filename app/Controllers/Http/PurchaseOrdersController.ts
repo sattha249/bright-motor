@@ -9,6 +9,7 @@ export default class PurchaseOrdersController {
 
   // GET /purchase-orders
   public async index({ request, auth }: HttpContextContract) {
+    console.log('🟢 API DO index', request.all())
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 10)
     const user = auth.user!
@@ -26,11 +27,14 @@ export default class PurchaseOrdersController {
     }
 
     // *** เพิ่ม .paginate() ***
-    return query.paginate(page, perPage)
+    const result = await query.paginate(page, perPage)
+    console.log('🔴 API RESULT index', result)
+    return result
   }
 
   // POST /purchase-orders
-  public async store({ request, auth }: HttpContextContract) {
+  public async store({ request, auth, response }: HttpContextContract) {
+    console.log('🟢 API DO store', request.all())
     const { supplier_name, notes, items } = request.only(['supplier_name', 'notes', 'items'])
     const user = auth.user!
 
@@ -51,33 +55,42 @@ export default class PurchaseOrdersController {
       await po.related('items').createMany(items, trx) // items ต้องมี { product_id, quantity, cost_price }
       
       await trx.commit()
-      return po.load('items')
+      const result = await po.load('items')
+      console.log('🔴 API RESULT store', result)
+      return result
 
     } catch (error) {
       await trx.rollback()
+      console.log('🔴 API RESULT store ERROR', error)
       return response.status(500).send({ message: 'Error creating PO', error: error.message })
     }
   }
 
   // GET /purchase-orders/:id
   public async show({ params }: HttpContextContract) {
-    return PurchaseOrder.query()
+    console.log('🟢 API DO show', params)
+    const result = await PurchaseOrder.query()
       .where('id', params.id)
       .preload('creator')
       .preload('approver')
       .preload('items', (itemsQuery) => itemsQuery.preload('product'))
       .firstOrFail()
+    console.log('🔴 API RESULT show', result)
+    return result
   }
 
   // PUT /purchase-orders/:id (สำหรับแก้ไข)
   public async update({ params, request, response, auth }: HttpContextContract) {
+    console.log('🟢 API DO update', { params, body: request.all() })
     const po = await PurchaseOrder.findOrFail(params.id)
 
     // ตรวจสอบสิทธิ์ (Admin หรือ เจ้าของ PO ที่ยังไม่อนุมัติ)
     if (auth.user!.role !== 'admin' && auth.user!.id !== po.userId) {
+      console.log('🔴 API RESULT update ERROR', 'You cannot edit this PO')
       return response.forbidden({ message: 'You cannot edit this PO' })
     }
     if (po.status !== 'Pending') {
+      console.log('🔴 API RESULT update ERROR', 'Cannot edit an approved or cancelled PO')
       return response.badRequest({ message: 'Cannot edit an approved or cancelled PO' })
     }
 
@@ -94,16 +107,20 @@ export default class PurchaseOrdersController {
       await po.related('items').createMany(items, trx)
 
       await trx.commit()
-      return po.load('items')
+      const result = await po.load('items')
+      console.log('🔴 API RESULT update', result)
+      return result
 
     } catch (error) {
       await trx.rollback()
+      console.log('🔴 API RESULT update ERROR', error)
       return response.status(500).send({ message: 'Error updating PO', error: error.message })
     }
   }
 
   // PATCH /purchase-orders/:id/approve (สำหรับ Admin)
  public async approve({ params, response, auth }: HttpContextContract) {
+    console.log('🟢 API DO approve', params)
     if (auth.user!.role !== 'admin') {
       return response.forbidden({ message: 'Only admins can approve POs' })
     }
@@ -145,25 +162,32 @@ export default class PurchaseOrdersController {
       }
 
       await trx.commit()
-      return response.ok({ message: 'Purchase Order approved and stock updated!', po })
+      const result = { message: 'Purchase Order approved and stock updated!', po }
+      console.log('🔴 API RESULT approve', result)
+      return response.ok(result)
 
     } catch (error) {
       await trx.rollback()
+      console.log('🔴 API RESULT approve ERROR', error)
       return response.status(500).send({ message: 'Error approving PO', error: error.message })
     }
   }
 
   // DELETE /purchase-orders/:id (สำหรับยกเลิก)
   public async destroy({ params, response, auth }: HttpContextContract) {
+    console.log('🟢 API DO destroy', params)
     const po = await PurchaseOrder.findOrFail(params.id)
     
     if (auth.user!.role !== 'admin' && auth.user!.id !== po.userId) {
+      console.log('🔴 API RESULT destroy ERROR', 'You cannot cancel this PO')
       return response.forbidden({ message: 'You cannot cancel this PO' })
     }
     
     po.status = 'Cancelled'
     await po.save()
     
-    return response.ok({ message: 'Purchase Order has been cancelled' })
+    const result = { message: 'Purchase Order has been cancelled' }
+    console.log('🔴 API RESULT destroy', result)
+    return response.ok(result)
   }
 }

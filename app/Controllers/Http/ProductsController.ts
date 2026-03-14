@@ -5,6 +5,7 @@ import Product from 'App/Models/Product'
 
 export default class ProductsController {
   public async index({ request }: HttpContextContract) {
+    console.log('🟢 API DO index', request.all())
     const { category, brand, search, page = 1, perPage = 10 } = request.qs()
     const query = Product.query()
 
@@ -20,10 +21,13 @@ export default class ProductsController {
       })
     }
 
-    return await query.orderBy('id', 'desc').paginate(Number(page), Number(perPage))
+    const result = await query.orderBy('id', 'desc').paginate(Number(page), Number(perPage))
+    console.log('🔴 API RESULT index', result)
+    return result
   }
 
   public async store({ request,response }: HttpContextContract) {
+    console.log('🟢 API DO store', request.all())
     const data = request.only([
       'product_code',
       'category',
@@ -39,20 +43,27 @@ export default class ProductsController {
     // check duplicate product code first
     const existingProduct = await Product.findBy('product_code', data.product_code)
     if (existingProduct) {
-      return response.status(401).json({success:false, message: 'Product code already exists' })
+      const errorResult = {success:false, message: 'Product code already exists' }
+      console.log('🔴 API RESULT store ERROR', errorResult)
+      return response.status(401).json(errorResult)
     }
-    return await Product.create(data)
+    const result = await Product.create(data)
+    console.log('🔴 API RESULT store', result)
+    return result
   }
 
   // new api for bulk insert products from csv
   public async bulkStore({ request,response }: HttpContextContract) {
+    console.log('🟢 API DO bulkStore', request.all())
     const products = request.input('products', [])
     const createdProducts: Product[] = []
     const mapProductCode = products.map(el => el.product_code)
     const existingProducts = await Product.query().whereIn('product_code', mapProductCode).select('product_code')
     const duplicateProducts = existingProducts.map(el => el.productCode)
     if (duplicateProducts.length > 0) {
-      return response.status(401).json({success:false, message: 'Some product codes already exist', duplicateProducts } )
+      const errorResult = {success:false, message: 'Some product codes already exist', duplicateProducts }
+      console.log('🔴 API RESULT bulkStore ERROR', errorResult)
+      return response.status(401).json(errorResult)
     }
     for (const item of products) {
         const newProduct = await Product.create({
@@ -69,14 +80,20 @@ export default class ProductsController {
         })
         createdProducts.push(newProduct)
       }
-    return { createdProducts }
+    const result = { createdProducts }
+    console.log('🔴 API RESULT bulkStore', result)
+    return result
   }
 
   public async show({ params }: HttpContextContract) {
-    return await Product.findOrFail(params.id)
+    console.log('🟢 API DO show', params)
+    const product = await Product.findOrFail(params.id)
+    console.log('🔴 API RESULT show', product)
+    return product
   }
 
   public async update({ params, request }: HttpContextContract) {
+    console.log('🟢 API DO update', { params, body: request.all() })
     const product = await Product.findOrFail(params.id)
     const data = request.only([
       'category',
@@ -92,10 +109,12 @@ export default class ProductsController {
 
     product.merge(data)
     await product.save()
+    console.log('🔴 API RESULT update', product)
     return product
   }
 
   public async destroy({auth,response, params }: HttpContextContract) {
+    console.log('🟢 API DO destroy', params)
     const authUser =  auth.user
     if (authUser?.role !== 'admin') {
       return response.status(401).json({success:false, message: 'Only admin can delete' })
@@ -106,9 +125,11 @@ export default class ProductsController {
   }
 
   public async validateCodes({ request, response }: HttpContextContract) {
+    console.log('🟢 API DO validateCodes', request.all())
     const codes = request.input('codes', [])
     
     if (!codes || codes.length === 0) {
+      console.log('🔴 API RESULT validateCodes', [])
       return response.ok([])
     }
 
@@ -117,6 +138,7 @@ export default class ProductsController {
       .whereIn('product_code', codes)
       .select('id', 'product_code', 'description', 'brand', 'unit') // เลือกเฉพาะ field ที่จำเป็น
 
+    console.log('🔴 API RESULT validateCodes', products)
     return response.ok(products)
   }
   
