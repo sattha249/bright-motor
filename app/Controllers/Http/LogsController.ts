@@ -8,18 +8,18 @@ import moment from 'moment'
 import Product from 'App/Models/Product'
 import Truck from 'App/Models/Truck'
 import User from 'App/Models/User'
-const CREDIT_PERIOD = { week: 7 , month: 24} // days
+const CREDIT_PERIOD = { week: 7, month: 24 } // days
 const INTEREST_RATE_PERCENT = 8 // 8% per selected_period you can move it to env , but this hard code for example
 
 export default class SellLogsController {
- public async index({ request }) {
+  public async index({ request }) {
     console.log('🟢 API DO index', request.all())
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
     const search = request.input('search', '')
-    
-    const truck = request.input('truck_id') 
-    
+
+    const truck = request.input('truck_id')
+
     let includePreOrders = request.input('include_preorder', true)
     includePreOrders = includePreOrders === 'true' || includePreOrders === true ? true : false
 
@@ -27,7 +27,7 @@ export default class SellLogsController {
     const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
 
     const query = SellLog.query()
-      .preload('items',(itemQuery)=>{
+      .preload('items', (itemQuery) => {
         itemQuery.preload('product')
       })
       .preload('customer')
@@ -69,7 +69,7 @@ export default class SellLogsController {
     console.log('🟢 API DO show', params)
     const sellLog = await SellLog.query()
       .where('id', params.id)
-      .preload('items',(itemQuery)=>{
+      .preload('items', (itemQuery) => {
         itemQuery.preload('product')
       })
       .preload('customer')
@@ -79,7 +79,7 @@ export default class SellLogsController {
     return sellLog
   }
 
-public async store({ request, response, auth }: HttpContextContract) {
+  public async store({ request, response, auth }: HttpContextContract) {
     console.log('🟢 API DO store', request.all())
     const data = request.only([
       'customerId', 'truckId', 'totalPrice', 'items',
@@ -98,14 +98,14 @@ public async store({ request, response, auth }: HttpContextContract) {
     }
 
     let calculatedPendingAmount = 0
-    let isBillPaid = true 
+    let isBillPaid = true
 
     data.items.forEach((item) => {
       const itemSoldPrice = parseFloat(item.sold_price || item.soldPrice)
       const itemQty = parseInt(item.quantity)
 
       if (item.is_paid === false) {
-        isBillPaid = false 
+        isBillPaid = false
         calculatedPendingAmount += ((itemSoldPrice) * itemQty)
       }
     })
@@ -121,10 +121,10 @@ public async store({ request, response, auth }: HttpContextContract) {
         customerId: data.customerId,
         truckId: data.truckId || 0,
         truckName: truckName,
-        
+
         totalPrice: data.items.reduce((acc, item) => {
-             const price = parseFloat(item.price)
-             return acc + (price * item.quantity)
+          const price = parseFloat(item.price)
+          return acc + (price * item.quantity)
         }, 0),
 
         totalDiscount: data.totalDiscount || 0,
@@ -148,14 +148,14 @@ public async store({ request, response, auth }: HttpContextContract) {
           totalPrice: item.price * item.quantity,
           discount: item.discount || 0,
           soldPrice: item.sold_price || item.soldPrice, // รองรับ snake_case จาก json
-          isPaid: item.is_paid !== undefined ? item.is_paid : true 
+          isPaid: item.is_paid !== undefined ? item.is_paid : true
         }, { client: trx })
       }
 
       await trx.commit()
-      
+
       const result = { billNo: billNo, message: 'Sell log created successfully', data: sellLog }
-      console.log('🔴 API RESULT store', result)
+      console.log('🔴 API RESULT store', result.data.toJSON())
       return response.status(201).json(result)
     } catch (err) {
       await trx.rollback()
@@ -164,11 +164,11 @@ public async store({ request, response, auth }: HttpContextContract) {
     }
   }
 
-  private generateBillNo(data){
+  private generateBillNo(data) {
     return `BMT-${data.customerId}-${data.truckId || '0'}-${new Date().getTime()}`
   }
 
-  private async cutStock(data,role) {
+  private async cutStock(data, role) {
     const trx = await Database.transaction()
     try {
       for (const item of data.items) {
@@ -189,52 +189,52 @@ public async store({ request, response, auth }: HttpContextContract) {
     }
   }
 
-  public async summary({auth,request,response}){
+  public async summary({ auth, request, response }) {
     console.log('🟢 API DO summary', request.all())
-    try{
-    const startDate = request.input('start_date') || moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const truck = request.input('truck_id')
-    const search = request.input('search','')
-    let sellogQuery =  SellLog.query()
-      .where('created_at', '>=', startDate)
-      .where('created_at', '<=', endDate)
-    
-    if(truck !== null && truck !== undefined && truck !== ''){
-      sellogQuery = sellogQuery.where('truck_id', truck)
+    try {
+      const startDate = request.input('start_date') || moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
+      const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
+      const truck = request.input('truck_id')
+      const search = request.input('search', '')
+      let sellogQuery = SellLog.query()
+        .where('created_at', '>=', startDate)
+        .where('created_at', '<=', endDate)
+
+      if (truck !== null && truck !== undefined && truck !== '') {
+        sellogQuery = sellogQuery.where('truck_id', truck)
+      }
+
+      if (search) {
+        sellogQuery.where((builder) => {
+          builder
+            .whereHas('customer', (customerQuery) => {
+              customerQuery.where('name', 'like', `%${search}%`)
+            })
+            .orWhere('bill_no', 'like', `%${search}%`)
+        })
+      }
+
+      const sellLogsResult = await sellogQuery.sum('total_price as total').sum('total_discount as discount')
+      const totalSales = sellLogsResult[0].$extras.total || 0
+      const totalDiscount = sellLogsResult[0].$extras.discount || 0
+
+      const totalProductResult = await Product.query().count('* as count')
+      const totalProduct = totalProductResult[0].$extras.count
+
+      const totalProductInStockResult = await WarehouseStock.query().count('* as count')
+      const totalProductInStock = totalProductInStockResult[0].$extras.count || 0
+      const result = { totalSales, totalProduct, totalProductInStock, totalDiscount }
+      console.log('🔴 API RESULT summary', result)
+      return response.json(result)
+
     }
-
-    if (search) {
-      sellogQuery.where((builder) => {
-        builder
-          .whereHas('customer', (customerQuery) => {
-            customerQuery.where('name', 'like', `%${search}%`)
-          })
-          .orWhere('bill_no', 'like', `%${search}%`)
-      })
+    catch (err) {
+      console.log('🔴 API RESULT summary ERROR', err)
+      return response.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล' })
     }
-
-    const sellLogsResult = await sellogQuery.sum('total_price as total').sum('total_discount as discount')
-    const totalSales = sellLogsResult[0].$extras.total || 0
-    const totalDiscount = sellLogsResult[0].$extras.discount || 0
-
-    const totalProductResult = await Product.query().count('* as count')
-    const totalProduct = totalProductResult[0].$extras.count
-
-    const totalProductInStockResult = await WarehouseStock.query().count('* as count')
-    const totalProductInStock = totalProductInStockResult[0].$extras.count || 0
-    const result = {totalSales,totalProduct,totalProductInStock,totalDiscount}
-    console.log('🔴 API RESULT summary', result)
-    return response.json(result)
-     
   }
-  catch(err){
-    console.log('🔴 API RESULT summary ERROR', err)
-    return response.status(500).json({success:false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล'})
-  }
-}
-// credit section
-// 1. แสดงรายการ Credit ทั้งหมด (Index) + Search
+  // credit section
+  // 1. แสดงรายการ Credit ทั้งหมด (Index) + Search
   public async indexCredit({ request, response }: HttpContextContract) {
     console.log('🟢 API DO indexCredit', request.all())
     const page = request.input('page', 1)
@@ -248,16 +248,16 @@ public async store({ request, response, auth }: HttpContextContract) {
       .orderBy('created_at', 'desc')
 
     if (search) {
-      if (search !== 'ไม่ระบุรถ'){
-      query.where((q) => {
-        q.where('bill_no', 'like', `%${search}%`)
-         .orWhere('truck_name', 'like', `%${search}%`)
-         .orWhereHas('customer', (cQuery) => {
-           cQuery.where('name', 'like', `%${search}%`)
-         })
-      })
+      if (search !== 'ไม่ระบุรถ') {
+        query.where((q) => {
+          q.where('bill_no', 'like', `%${search}%`)
+            .orWhere('truck_name', 'like', `%${search}%`)
+            .orWhereHas('customer', (cQuery) => {
+              cQuery.where('name', 'like', `%${search}%`)
+            })
+        })
       }
-      else{
+      else {
         query.where('truck_id', 0) // if send "ไม่ระบุรถ", filter truck_id = 0 (mean warehouse ja)
       }
     }
@@ -273,12 +273,12 @@ public async store({ request, response, auth }: HttpContextContract) {
     const sellLog = await SellLog.query().where('id', params.id).preload('customer').preload('items').firstOrFail()
 
     if (!sellLog.isPaid && sellLog.isCredit && CREDIT_PERIOD[sellLog.isCredit]) {
-      
+
       const periodDays = CREDIT_PERIOD[sellLog.isCredit] // 7 หรือ 24
-      
+
       const createdAt = moment(sellLog.createdAt.toJSDate())
       const now = moment()
-      
+
       const diffDays = now.diff(createdAt, 'days')
 
       // หากจำนวนวันเกินกำหนด (อย่างน้อย 1 รอบ)
@@ -328,7 +328,7 @@ public async store({ request, response, auth }: HttpContextContract) {
   public async summaryCredit({ request, response }: HttpContextContract) {
     console.log('🟢 API DO summaryCredit', request.all())
     console.log('Generating credit summary report...')
-    
+
     // 1. Get the 'groupBy' parameter from the request query string
     const groupBy = request.input('groupBy', 'truck') // default to 'truck'
 
@@ -358,7 +358,7 @@ public async store({ request, response, auth }: HttpContextContract) {
       .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN pending_amount ELSE 0 END) as total_unpaid_amount'))
       .select(Database.raw('COUNT(CASE WHEN is_paid = 0 THEN 1 END) as count_unpaid_bills'))
       .select(Database.raw('SUM(CASE WHEN is_paid = 0 THEN interest ELSE 0 END) as total_unpaid_interest'))
-      
+
       // --- Paid Group (is_paid = 1) ---
       .select(Database.raw('SUM(CASE WHEN is_paid = 1 THEN pending_amount ELSE 0 END) as total_paid_amount'))
       .select(Database.raw('COUNT(CASE WHEN is_paid = 1 THEN 1 END) as count_paid_bills'))
@@ -367,11 +367,11 @@ public async store({ request, response, auth }: HttpContextContract) {
     // 5. Format Data
     const formattedData = summaries.map((item) => ({
       group_name: item.group_name || (groupBy === 'customer' ? 'ไม่ระบุลูกค้า' : 'ไม่ระบุรถ'), // Handle nulls
-      
+
       total_unpaid_amount: Number(item.total_unpaid_amount || 0),
       count_unpaid_bills: Number(item.count_unpaid_bills || 0),
       total_unpaid_interest: Number(item.total_unpaid_interest || 0),
-      
+
       total_paid_amount: Number(item.total_paid_amount || 0),
       count_paid_bills: Number(item.count_paid_bills || 0),
       total_paid_interest: Number(item.total_paid_interest || 0),
