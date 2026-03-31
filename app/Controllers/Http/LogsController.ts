@@ -178,8 +178,20 @@ export default class SellLogsController {
           .first()
 
         if (stock) {
+          if (stock.quantity < item.quantity) {
+            throw new Error(`สินค้าในสต๊อกไม่เพียงพอ (Product ID: ${item.productId})`)
+          }
+
           stock.quantity -= item.quantity
-          await stock.save({ client: trx })
+          stock.useTransaction(trx)
+
+          if (stock.quantity <= 0) {
+            await stock.delete()
+          } else {
+            await stock.save()
+          }
+        } else {
+          throw new Error(`ไม่พบสินค้าในสต๊อก (Product ID: ${item.productId})`)
         }
       }
       await trx.commit()
