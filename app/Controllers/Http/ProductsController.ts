@@ -1,6 +1,8 @@
 // import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Product from 'App/Models/Product'
+import TruckStock from 'App/Models/TruckStock'
+import WarehouseStock from 'App/Models/WarehouseStock'
 // note max_quantity is using for showing percent only , we not limit stock by max_quantity ja
 
 export default class ProductsController {
@@ -120,6 +122,10 @@ export default class ProductsController {
       return response.status(401).json({success:false, message: 'Only admin can delete' })
     }
     const product = await Product.findOrFail(params.id)
+    // delete product from truckstock too
+    let productToDelete = product.toJSON()
+    await TruckStock.query().where('product_id', productToDelete.id).delete()
+    await WarehouseStock.query().where('product_id', productToDelete.id).delete()
     await product.delete()
     return { message: 'Deleted successfully' }
   }
