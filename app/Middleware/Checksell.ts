@@ -18,13 +18,13 @@ export default class Checksell {
       const stock = await selectedQueryModel
         .where('product_id', item.productId)
         .first()
-      console.log(item)
+      console.log('[Middleware Checksell]: check product',item)
       // console.log(stock)
       if (!stock) {
-        return response.status(400).json({ message: 'Product not found' })
+        return response.status(400).json({ message: `Product ${item.productId} not found`})
       }
       if (stock.quantity < item.quantity) {
-        return response.status(400).json({ message: 'Not enough stock', product: stock })
+        return response.status(400).json({ message: `Not enough stock of product ${item.productId}`, product: stock})
       }
     }
 
