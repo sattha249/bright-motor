@@ -231,27 +231,47 @@ export default class PreOrdersController {
     console.log('🟢 API DO update', { params, body: request.all() })
     const trx = await Database.transaction()
     try {
-      const preOrder = await PreOrder.findOrFail(params.id)
-      // 1. คืนสต็อกเดิมกลับเข้า Warehouse (Revert Stock)
-      const oldItems = await PreOrderItem.query().where('pre_order_id', preOrder.id)
+      const preOrder = await PreOrder.query({ client: trx })
+        .where('id', params.id)
+        .firstOrFail()
+
+      // 1. คืนสต็อกเดิมกลับเข้า Warehouse และลดออกจาก Truck คันเดิม (Revert Stock)
+      const oldItems = await PreOrderItem.query({ client: trx }).where('pre_order_id', preOrder.id)
       for (const item of oldItems) {
-        const stock = await WarehouseStock.query()
+        // คืนยอดเข้า Warehouse
+        const wStock = await WarehouseStock.query({ client: trx })
           .where('product_id', item.productId)
           .first()
 
-        if (stock) {
-          stock.quantity += item.quantity // คืนยอด
-          await stock.save()
+        if (wStock) {
+          wStock.quantity += item.quantity
+          await wStock.save()
+        }
+
+        // คืนยอดออกจาก Truck คันเดิม
+        const tStock = await TruckStock.query({ client: trx })
+          .where('truck_id', preOrder.truckId)
+          .andWhere('product_id', item.productId)
+          .first()
+
+        if (tStock) {
+          if (tStock.quantity >= item.quantity) {
+            tStock.quantity -= item.quantity
+          } else {
+            tStock.quantity = 0
+          }
+          await tStock.save()
         }
       }
 
       // 2. ลบรายการสินค้าเดิมออก
-      await PreOrderItem.query().where('pre_order_id', preOrder.id).delete()
+      await PreOrderItem.query({ client: trx }).where('pre_order_id', preOrder.id).delete()
 
       // 3. รับข้อมูลใหม่
       const { truckId, customerId, isCredit, items, totalSoldPrice } = request.all()
 
       // 4. อัปเดตข้อมูล Header
+      preOrder.useTransaction(trx)
       preOrder.truckId = truckId
       preOrder.customerId = customerId
       preOrder.isCredit = isCredit
@@ -259,19 +279,36 @@ export default class PreOrdersController {
       preOrder.totalPrice = totalSoldPrice
       await preOrder.save()
 
-      // 5. สร้างรายการใหม่ และ ตัดสต็อกใหม่ (Process New Items)
+      // 5. สร้างรายการใหม่, ตัดสต็อกโกดัง และเพิ่มเข้าสต็อกรถ (Process New Items & Move Stock)
       for (const item of items) {
-        // ตัดสต็อกใหม่
-        const stock = await WarehouseStock.query()
+        // ตัดสต็อกใหม่จาก Warehouse
+        const wStock = await WarehouseStock.query({ client: trx })
           .where('product_id', item.productId)
           .first()
 
-        if (!stock || stock.quantity < item.quantity) {
-          throw new Error(`สินค้า ${item.description} มีไม่พอในคลัง (เหลือ ${stock?.quantity || 0})`)
+        if (!wStock || wStock.quantity < item.quantity) {
+          throw new Error(`สินค้า ${item.description || ('ID ' + item.productId)} มีไม่พอในคลัง (เหลือ ${wStock?.quantity || 0})`)
         }
 
-        stock.quantity -= item.quantity
-        await stock.save()
+        wStock.quantity -= item.quantity
+        await wStock.save()
+
+        // เพิ่มสต็อกเข้า Truck คันใหม่
+        let tStock = await TruckStock.query({ client: trx })
+          .where('truck_id', truckId)
+          .andWhere('product_id', item.productId)
+          .first()
+
+        if (tStock) {
+          tStock.quantity += item.quantity
+          await tStock.save()
+        } else {
+          await TruckStock.create({
+            truckId: truckId,
+            productId: item.productId,
+            quantity: item.quantity
+          }, { client: trx })
+        }
 
         // สร้าง Item ใหม่
         await PreOrderItem.create({
@@ -282,7 +319,7 @@ export default class PreOrdersController {
           soldPrice: item.soldPrice,
           discount: item.discount,
           isPaid: item.isPaid
-        })
+        }, { client: trx })
       }
 
       await trx.commit()
