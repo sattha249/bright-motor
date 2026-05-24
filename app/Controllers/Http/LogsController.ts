@@ -61,7 +61,7 @@ export default class SellLogsController {
 
     query.orderBy('created_at', 'desc')
     const result = await query.paginate(page, limit)
-    console.log('🔴 API RESULT index', result)
+    console.log('🔴 API RESULT index', result.toJSON())
     return result
   }
 
@@ -75,7 +75,7 @@ export default class SellLogsController {
       .preload('customer')
       .preload('truck')
       .firstOrFail()
-    console.log('🔴 API RESULT show', sellLog)
+    console.log('🔴 API RESULT show', sellLog.toJSON())
     return sellLog
   }
 
@@ -275,7 +275,7 @@ export default class SellLogsController {
     }
 
     const results = await query.paginate(page, limit)
-    console.log('🔴 API RESULT indexCredit', results)
+    console.log('🔴 API RESULT indexCredit', results.toJSON())
     return response.json(results)
   }
 
@@ -305,7 +305,7 @@ export default class SellLogsController {
     }
     await sellLog.load('items')
 
-    console.log('🔴 API RESULT showCredit', sellLog)
+    console.log('🔴 API RESULT showCredit', sellLog.toJSON())
     return response.json(sellLog)
   }
 
