@@ -49,7 +49,7 @@ export default class SellLogsController {
     if (truck !== null && truck !== undefined && truck !== '') {
       query.where('truck_id', truck)
     }
-    
+
     if (includePreOrders == 'except-preorder') {
       query.where('is_preorder', false)
     } else if (includePreOrders == 'only-preorder') {
@@ -213,12 +213,18 @@ export default class SellLogsController {
       const endDate = request.input('end_date') || moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
       const truck = request.input('truck_id')
       const search = request.input('search', '')
+      const includePreOrders = request.input('include_preorder','all')
       let sellogQuery = SellLog.query()
         .where('created_at', '>=', startDate)
         .where('created_at', '<=', endDate)
 
       if (truck !== null && truck !== undefined && truck !== '') {
         sellogQuery = sellogQuery.where('truck_id', truck)
+      }
+      if (includePreOrders == 'except-preorder') {
+        sellogQuery.where('is_preorder', false)
+      } else if (includePreOrders == 'only-preorder') {
+        sellogQuery.where('is_preorder', true)
       }
 
       if (search) {
