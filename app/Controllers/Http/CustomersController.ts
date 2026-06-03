@@ -20,7 +20,7 @@ export default class CustomersController {
     }
 
     const result = await query.paginate(page, limit)
-    console.log('🔴 API RESULT index', result)
+    console.log('🔴 API RESULT index', result.serialize())
     return result
   }
 
@@ -32,7 +32,7 @@ export default class CustomersController {
     ])
     try {
       const customer = await Customer.create(data)
-      console.log('🔴 API RESULT store', customer)
+      console.log('🔴 API RESULT store', customer.serialize())
       return response.status(201).json(customer)
     } catch (error) {
       console.log('🔴 API RESULT store ERROR', error)
@@ -43,7 +43,7 @@ export default class CustomersController {
   public async show({ params }: HttpContextContract) {
     console.log('🟢 API DO show', params)
     const customer = await Customer.findOrFail(params.id)
-    console.log('🔴 API RESULT show', customer)
+    console.log('🔴 API RESULT show', customer.serialize())
     return customer
   }
 
@@ -56,7 +56,7 @@ export default class CustomersController {
     ])
     customer.merge(data)
     await customer.save()
-    console.log('🔴 API RESULT update', customer)
+    console.log('🔴 API RESULT update', customer.serialize())
     return customer
   }
 

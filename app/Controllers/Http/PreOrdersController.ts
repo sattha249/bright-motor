@@ -40,7 +40,7 @@ export default class PreOrdersController {
 
     }
     const result = await query.paginate(page, limit)
-    console.log('🔴 API RESULT index', result)
+    console.log('🔴 API RESULT index', result.serialize())
     return result
   }
 
@@ -53,7 +53,7 @@ export default class PreOrdersController {
       .preload('truck')
       .preload('customer')
       .firstOrFail()
-    console.log('🔴 API RESULT show', result)
+    console.log('🔴 API RESULT show', result.serialize())
     return result
   }
 
@@ -101,7 +101,7 @@ export default class PreOrdersController {
           .first()
 
         if (!warehouseStock || warehouseStock.quantity < item.quantity) {
-          throw new Error(`สินค้า ID ${item.productId} ในโกดังไม่พอ`)
+          throw new Error(`สินค้า ${item.description || ('ID ' + item.productId)} มีไม่พอในคลัง (เหลือ ${warehouseStock?.quantity || 0})`)
         }
         warehouseStock.quantity -= item.quantity
         await warehouseStock.save()
@@ -126,7 +126,7 @@ export default class PreOrdersController {
       }
 
       await trx.commit()
-      console.log('🔴 API RESULT store', preOrder)
+      console.log('🔴 API RESULT store', preOrder.serialize())
       return response.created(preOrder)
 
     } catch (error) {

@@ -26,14 +26,14 @@ export default class WarehouseStocksController {
     }
     query.orderBy(orderBy,sort)
     const result = await query.paginate(page, limit)
-    console.log('🔴 API RESULT index', result)
+    console.log('🔴 API RESULT index', result.serialize())
     return result
   }
 
   public async show({ params }: HttpContextContract) {
     console.log('🟢 API DO show', params)
     const result = await WarehouseStock.query().where('product_id', params.productId).preload('product')
-    console.log('🔴 API RESULT show', result)
+    console.log('🔴 API RESULT show', result.map((r) => r.serialize()))
     return result
   }
 

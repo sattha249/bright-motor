@@ -112,7 +112,7 @@ export default class ReturnController {
 
       await trx.commit()
       const result = { message: 'Success', returnLog }
-      console.log('🔴 API RESULT returnItems', result)
+      console.log('🔴 API RESULT returnItems', { ...result, returnLog: returnLog.serialize() })
       return response.json(result)
 
     } catch (error) {

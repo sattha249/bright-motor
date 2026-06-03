@@ -160,7 +160,7 @@ export default class SellLogsController {
       await trx.commit()
 
       const result = { billNo: billNo, message: 'Sell log created successfully', data: sellLog }
-      console.log('🔴 API RESULT store', result.data.toJSON())
+      console.log('🔴 API RESULT store', { ...result, data: sellLog.serialize() })
       return response.status(201).json(result)
     } catch (err) {
       await trx.rollback()
@@ -339,7 +339,7 @@ export default class SellLogsController {
       await trx.commit()
 
       const result = { message: 'Credit closed successfully', data: sellLog }
-      console.log('🔴 API RESULT closeCredit', result)
+      console.log('🔴 API RESULT closeCredit', { ...result, data: sellLog.serialize() })
       return response.json(result)
     } catch (error) {
       await trx.rollback()

@@ -79,7 +79,7 @@ export default class AuthController {
     user.merge(payload)
     await user.save()
 
-    console.log('🔴 API RESULT updateProfile', user)
+    console.log('🔴 API RESULT updateProfile', user.serialize())
     return response.ok(user)
   }
   // implement by these 
@@ -106,7 +106,7 @@ export default class AuthController {
       })
     }
     users = await users.orderBy('id', 'desc').paginate(Number(page), Number(perPage))
-    console.log('🔴 API RESULT listUsers', users)
+    console.log('🔴 API RESULT listUsers', users.serialize())
     return response.ok(users)
   }
 
@@ -136,7 +136,7 @@ export default class AuthController {
     }
     user.merge(payload)
     await user.save()
-    console.log('🔴 API RESULT updateUser', user)
+    console.log('🔴 API RESULT updateUser', user.serialize())
     return response.ok(user)
   }
   public async deleteUser({ auth, response, params }: HttpContextContract) {

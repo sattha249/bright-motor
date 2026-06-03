@@ -28,7 +28,7 @@ export default class PurchaseOrdersController {
 
     // *** เพิ่ม .paginate() ***
     const result = await query.paginate(page, perPage)
-    console.log('🔴 API RESULT index', result)
+    console.log('🔴 API RESULT index', result.serialize())
     return result
   }
 
@@ -56,7 +56,7 @@ export default class PurchaseOrdersController {
       
       await trx.commit()
       const result = await po.load('items')
-      console.log('🔴 API RESULT store', result)
+      console.log('🔴 API RESULT store', result.serialize())
       return result
 
     } catch (error) {
@@ -75,7 +75,7 @@ export default class PurchaseOrdersController {
       .preload('approver')
       .preload('items', (itemsQuery) => itemsQuery.preload('product'))
       .firstOrFail()
-    console.log('🔴 API RESULT show', result)
+    console.log('🔴 API RESULT show', result.serialize())
     return result
   }
 
@@ -108,7 +108,7 @@ export default class PurchaseOrdersController {
 
       await trx.commit()
       const result = await po.load('items')
-      console.log('🔴 API RESULT update', result)
+      console.log('🔴 API RESULT update', result.serialize())
       return result
 
     } catch (error) {
@@ -163,7 +163,7 @@ export default class PurchaseOrdersController {
 
       await trx.commit()
       const result = { message: 'Purchase Order approved and stock updated!', po }
-      console.log('🔴 API RESULT approve', result)
+      console.log('🔴 API RESULT approve', { ...result, po: po.serialize() })
       return response.ok(result)
 
     } catch (error) {

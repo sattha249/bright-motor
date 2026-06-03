@@ -24,7 +24,7 @@ export default class ProductsController {
     }
 
     const result = await query.orderBy('id', 'desc').paginate(Number(page), Number(perPage))
-    console.log('🔴 API RESULT index', result)
+    console.log('🔴 API RESULT index', result.serialize())
     return result
   }
 
@@ -50,7 +50,7 @@ export default class ProductsController {
       return response.status(401).json(errorResult)
     }
     const result = await Product.create(data)
-    console.log('🔴 API RESULT store', result)
+    console.log('🔴 API RESULT store', result.serialize())
     return result
   }
 
@@ -83,14 +83,14 @@ export default class ProductsController {
         createdProducts.push(newProduct)
       }
     const result = { createdProducts }
-    console.log('🔴 API RESULT bulkStore', result)
+    console.log('🔴 API RESULT bulkStore', { createdProducts: createdProducts.map(p => p.serialize()) })
     return result
   }
 
   public async show({ params }: HttpContextContract) {
     console.log('🟢 API DO show', params)
     const product = await Product.findOrFail(params.id)
-    console.log('🔴 API RESULT show', product)
+    console.log('🔴 API RESULT show', product.serialize())
     return product
   }
 
@@ -111,7 +111,7 @@ export default class ProductsController {
 
     product.merge(data)
     await product.save()
-    console.log('🔴 API RESULT update', product)
+    console.log('🔴 API RESULT update', product.serialize())
     return product
   }
 
@@ -144,7 +144,7 @@ export default class ProductsController {
       .whereIn('product_code', codes)
       .select('id', 'product_code', 'description', 'brand', 'unit') // เลือกเฉพาะ field ที่จำเป็น
 
-    console.log('🔴 API RESULT validateCodes', products)
+    console.log('🔴 API RESULT validateCodes', products.map((p) => p.serialize()))
     return response.ok(products)
   }
   

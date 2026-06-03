@@ -20,7 +20,7 @@ export default class TrucksController {
     }
 
     const result = await query.paginate(page, limit)
-    console.log('🔴 API RESULT index', result)
+    console.log('🔴 API RESULT index', result.serialize())
     return result
   }
   public async store({ request }: HttpContextContract) {
@@ -33,14 +33,14 @@ export default class TrucksController {
       return errorResult
     }
     const result = await Truck.create(data)
-    console.log('🔴 API RESULT store', result)
+    console.log('🔴 API RESULT store', result.serialize())
     return result
   }
 
   public async show({ params }: HttpContextContract) {
     console.log('🟢 API DO show', params)
     const result = await Truck.query().where('id', params.id).preload('user').firstOrFail()
-    console.log('🔴 API RESULT show', result)
+    console.log('🔴 API RESULT show', result.serialize())
     return result
   }
 
@@ -50,7 +50,7 @@ export default class TrucksController {
     const data = request.only(['plateNumber', 'userId', 'plateProvince', 'model', 'loadCapacity'])
     truck.merge(data)
     await truck.save()
-    console.log('🔴 API RESULT update', truck)
+    console.log('🔴 API RESULT update', truck.serialize())
     return truck
   }
 
@@ -82,7 +82,7 @@ export default class TrucksController {
     }
 
     const result = await query.paginate(page, perPage)
-    console.log('🔴 API RESULT stocks', result)
+    console.log('🔴 API RESULT stocks', result.serialize())
     return result
   }
 }
