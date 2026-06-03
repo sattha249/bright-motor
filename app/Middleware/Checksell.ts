@@ -19,11 +19,11 @@ export default class Checksell {
         .where('product_id', item.productId)
         .first()
       console.log('[Middleware Checksell]: check product',item)
-      // console.log(stock)
       if (!stock) {
         return response.status(400).json({ message: `Product ${item.productId} not found`})
       }
       if (stock.quantity < item.quantity) {
+        console.log(`[Middleware Checksell]: not enough stock item ${item.productId}`, item.quantity, 'stock', stock.quantity)
         return response.status(400).json({ message: `Not enough stock of product ${item.productId}`, product: stock})
       }
     }

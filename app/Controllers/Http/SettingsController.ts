@@ -4,7 +4,9 @@ import fs from 'fs'
 import path from 'path'
 
 export default class SettingsController {
-    private qrCodePath = 'uploads/qrcode/qrcode.png' // เก็บชื่อไฟล์ไว้ตรงนี้
+  private qrCodePath = 'uploads/qrcode/qrcode.png' // เก็บชื่อไฟล์ไว้ตรงนี้
+  private apkFolderName = 'bmt-apk' // hardcode because we will never change this ja
+  private apkFileName = 'bright-motor.apk' 
 
   // GET /setting/qrcode
   public async getQrCode({ response }: HttpContextContract) {
@@ -50,5 +52,19 @@ export default class SettingsController {
     const result = { message: 'QR code uploaded successfully' }
     console.log('🔴 API RESULT uploadQrCode', result)
     return response.ok(result)
+  }
+
+  // GET /settings/download-app
+  public async downloadApp({ response }: HttpContextContract) {
+    console.log('🟢 API DO downloadApp')
+    const apkPath = path.join(Application.appRoot, '..', this.apkFolderName, this.apkFileName)
+
+    if (!fs.existsSync(apkPath)) {
+      console.log('🔴 API RESULT downloadApp ERROR', 'APK file not found at: ' + apkPath)
+      return response.status(404).send({ message: 'Application file not found' })
+    }
+
+    console.log('🔴 API RESULT downloadApp', 'Downloaded APK Success')
+    return response.attachment(apkPath, 'bright-motor.apk') // บังคับให้ดาวน์โหลดเป็นไฟล์ชื่อนี้
   }
 }
