@@ -112,7 +112,11 @@ export default class WarehouseStocksController {
 
     // ลดสินค้าในโกดัง
     warehouseStock.quantity -= product.quantity
-    await warehouseStock.save()
+    if (warehouseStock.quantity <= 0) {
+      await warehouseStock.delete()
+    } else {
+      await warehouseStock.save()
+    }
 
     if (truckStock) {
       console.log('truckStock', truckStock)
