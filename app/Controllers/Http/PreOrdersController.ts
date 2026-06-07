@@ -104,7 +104,11 @@ export default class PreOrdersController {
           throw new Error(`สินค้า ${item.description || ('ID ' + item.productId)} มีไม่พอในคลัง (เหลือ ${warehouseStock?.quantity || 0})`)
         }
         warehouseStock.quantity -= item.quantity
-        await warehouseStock.save()
+        if (warehouseStock.quantity <= 0) {
+          await warehouseStock.delete()
+        } else {
+          await warehouseStock.save()
+        }
 
         // 2.3 ADD to Truck (เพิ่มเข้ามารถ)
         // ต้องเช็คว่ารถคันนี้มีสินค้านี้หรือยัง ถ้าไม่มีสร้างใหม่ ถ้ามีบวกเพิ่ม
@@ -167,10 +171,14 @@ export default class PreOrdersController {
           // เช็คว่าของในรถพอให้ดึงกลับไหม (เผื่อกรณีผิดพลาดอื่น)
           if (truckStock.quantity >= item.quantity) {
             truckStock.quantity -= item.quantity
-            await truckStock.save()
           } else {
             // กรณีของหายไปไหนไม่รู้ ให้ลบเท่าที่มี หรือ throw error
             truckStock.quantity = 0
+          }
+
+          if (truckStock.quantity <= 0) {
+            await truckStock.delete()
+          } else {
             await truckStock.save()
           }
         }
@@ -260,7 +268,12 @@ export default class PreOrdersController {
           } else {
             tStock.quantity = 0
           }
-          await tStock.save()
+
+          if (tStock.quantity <= 0) {
+            await tStock.delete()
+          } else {
+            await tStock.save()
+          }
         }
       }
 
@@ -292,7 +305,11 @@ export default class PreOrdersController {
         }
 
         wStock.quantity -= item.quantity
-        await wStock.save()
+        if (wStock.quantity <= 0) {
+          await wStock.delete()
+        } else {
+          await wStock.save()
+        }
 
         // เพิ่มสต็อกเข้า Truck คันใหม่
         let tStock = await TruckStock.query({ client: trx })
