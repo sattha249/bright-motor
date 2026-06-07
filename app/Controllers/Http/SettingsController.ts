@@ -57,7 +57,15 @@ export default class SettingsController {
   // GET /settings/download-app
   public async downloadApp({ response }: HttpContextContract) {
     console.log('🟢 API DO downloadApp')
-    const apkPath = path.join(Application.appRoot, '..', this.apkFolderName, this.apkFileName)
+    let apkPath = path.join(Application.appRoot, '..', this.apkFolderName, this.apkFileName)
+
+    // หากไม่พบไฟล์ใน path แรก (เช่น ใน production ที่รันจากโฟลเดอร์ build) ให้ถอยออกอีก 1 ขั้น
+    if (!fs.existsSync(apkPath)) {
+      const prodPath = path.join(Application.appRoot, '..', '..', this.apkFolderName, this.apkFileName)
+      if (fs.existsSync(prodPath)) {
+        apkPath = prodPath
+      }
+    }
 
     if (!fs.existsSync(apkPath)) {
       console.log('🔴 API RESULT downloadApp ERROR', 'APK file not found at: ' + apkPath)
