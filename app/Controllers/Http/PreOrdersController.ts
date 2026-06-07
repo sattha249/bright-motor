@@ -268,15 +268,16 @@ export default class PreOrdersController {
       await PreOrderItem.query({ client: trx }).where('pre_order_id', preOrder.id).delete()
 
       // 3. รับข้อมูลใหม่
-      const { truckId, customerId, isCredit, items, totalSoldPrice } = request.all()
+      const { truckId, customerId, isCredit, items, totalPrice, totalDiscount, totalSoldPrice } = request.all()
 
       // 4. อัปเดตข้อมูล Header
       preOrder.useTransaction(trx)
       preOrder.truckId = truckId
       preOrder.customerId = customerId
       preOrder.isCredit = isCredit
+      preOrder.totalPrice = totalPrice
+      preOrder.totalDiscount = totalDiscount
       preOrder.totalSoldPrice = totalSoldPrice
-      preOrder.totalPrice = totalSoldPrice
       await preOrder.save()
 
       // 5. สร้างรายการใหม่, ตัดสต็อกโกดัง และเพิ่มเข้าสต็อกรถ (Process New Items & Move Stock)
