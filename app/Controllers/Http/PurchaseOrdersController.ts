@@ -56,7 +56,7 @@ export default class PurchaseOrdersController {
       
       await trx.commit()
       const result = await po.load('items')
-      console.log('🔴 API RESULT store', result.serialize())
+      console.log('🔴 API RESULT store', result)
       return result
 
     } catch (error) {
