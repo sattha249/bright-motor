@@ -86,6 +86,26 @@ export default class SellLogsController {
 
   public async store({ request, response, auth }: HttpContextContract) {
     console.log('🟢 API DO store', request.all())
+
+    const uuid = request.input('uuid') || request.header('x-idempotency-key')
+    if (uuid) {
+      const existingLog = await SellLog.query()
+        .where('uuid', uuid)
+        .preload('items', (itemQuery) => itemQuery.preload('product'))
+        .preload('customer')
+        .first()
+
+      if (existingLog) {
+        console.log('🔴 API RESULT store (Idempotent Hit)', existingLog.toJSON())
+        return response.status(200).json({
+          id: existingLog.id,
+          billNo: existingLog.billNo,
+          message: 'Already processed',
+          data: existingLog,
+        })
+      }
+    }
+
     const data = request.only([
       'customerId', 'truckId', 'totalPrice', 'items',
       'totalDiscount', 'totalSoldPrice', 'isCredit', 'isPreOrder'
@@ -122,6 +142,7 @@ export default class SellLogsController {
       const billNo = this.generateBillNo(data)
 
       const sellLog = await SellLog.create({
+        uuid: uuid || null,
         billNo: billNo,
         customerId: data.customerId,
         truckId: data.truckId || 0,

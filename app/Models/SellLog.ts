@@ -12,6 +12,9 @@ export default class SellLog extends BaseModel {
   public id: number
 
   @column()
+  public uuid: string | null
+
+  @column()
   public billNo: string
 
   @column()
