@@ -143,17 +143,14 @@ export default class PreOrdersController {
   // POST /pre-orders/:id/cancel (Cancel & Reverse Stock)
   public async cancel({ params, response }: HttpContextContract) {
     console.log('🟢 API DO cancel', params)
-    const preOrder = await PreOrder.findOrFail(params.id)
-
-    if (preOrder.status !== 'Pending') {
-      console.log('🔴 API RESULT cancel ERROR', 'ยกเลิกได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น')
-      return response.badRequest({ message: 'ยกเลิกได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น' })
-    }
-
-    await preOrder.load('items')
     const trx = await Database.transaction()
-
     try {
+      const preOrder = await PreOrder.query({ client: trx })
+        .where('id', params.id).forUpdate().firstOrFail()
+      if (preOrder.status !== 'Pending') {
+        throw new Error('ยกเลิกได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น')
+      }
+      await preOrder.load('items')
       // 1. Update Status
       preOrder.useTransaction(trx)
       preOrder.status = 'Cancelled'
@@ -207,20 +204,22 @@ export default class PreOrdersController {
   }
 
   public async confirm({ params, response }: HttpContextContract) {
-    console.log('🟢 API DO confirm', params)
-    const preOrder = await PreOrder.findOrFail(params.id)
-
-    if (preOrder.status !== 'Pending') {
-      console.log('🔴 API RESULT confirm ERROR', 'ยืนยันได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น')
-      return response.badRequest({ message: 'ยืนยันได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น' })
+    // Legacy clients still create the sale separately. Do not create another sale here.
+    const trx = await Database.transaction()
+    try {
+      const preOrder = await PreOrder.query({ client: trx })
+        .where('id', params.id).forUpdate().firstOrFail()
+      if (preOrder.status !== 'Pending' && preOrder.status !== 'Completed') {
+        throw new Error('ยืนยันได้เฉพาะรายการที่ยังไม่ Sync/Completed เท่านั้น')
+      }
+      preOrder.status = 'Completed'
+      await preOrder.save()
+      await trx.commit()
+      return response.ok({ message: 'ยืนยันการจัดส่งเรียบร้อย' })
+    } catch (error) {
+      await trx.rollback()
+      return response.badRequest({ message: error.message })
     }
-
-    preOrder.status = 'Completed'
-    await preOrder.save()
-
-    const result = { message: 'ยืนยันการจัดส่งเรียบร้อย' }
-    console.log('🔴 API RESULT confirm', result)
-    return response.ok(result)
   }
 
   // GET /pre-orders/sync/:truckId (สำหรับรถดึงข้อมูลใบงาน) ทำเผื่อไว้ก่อนจ้า
@@ -241,7 +240,12 @@ export default class PreOrdersController {
     try {
       const preOrder = await PreOrder.query({ client: trx })
         .where('id', params.id)
+        .forUpdate()
         .firstOrFail()
+
+      if (preOrder.status !== 'Pending') {
+        throw new Error('แก้ไขได้เฉพาะรายการที่ยังไม่ Completed/Cancelled เท่านั้น')
+      }
 
       // 1. คืนสต็อกเดิมกลับเข้า Warehouse และลดออกจาก Truck คันเดิม (Revert Stock)
       const oldItems = await PreOrderItem.query({ client: trx }).where('pre_order_id', preOrder.id)

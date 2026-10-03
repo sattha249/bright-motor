@@ -10,6 +10,7 @@ export default class HealthController {
         status: 'ok',
         online: true,
         db: 'connected',
+        capabilities: { stableSaleBillNo: true, atomicPreOrderSale: true },
         timestamp: new Date().toISOString(),
       })
     } catch (error) {

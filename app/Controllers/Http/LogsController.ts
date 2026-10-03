@@ -1,12 +1,11 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import SellLog from 'App/Models/SellLog'
 import SellLogItem from 'App/Models/SellLogItem'
-import TruckStock from 'App/Models/TruckStock'
 import WarehouseStock from 'App/Models/WarehouseStock'
 import Database from '@ioc:Adonis/Lucid/Database'
 import moment from 'moment'
 import Product from 'App/Models/Product'
-import Truck from 'App/Models/Truck'
+import SaleService, { SaleError } from 'App/Services/SaleService'
 import User from 'App/Models/User'
 const CREDIT_PERIOD = { week: 7, month: 24 } // days
 const INTEREST_RATE_PERCENT = 8 // 8% per selected_period you can move it to env , but this hard code for example
@@ -85,145 +84,23 @@ export default class SellLogsController {
   }
 
   public async store({ request, response, auth }: HttpContextContract) {
-    console.log('🟢 API DO store', request.all())
-
-    const uuid = request.input('uuid') || request.header('x-idempotency-key')
-    if (uuid) {
-      const existingLog = await SellLog.query()
-        .where('uuid', uuid)
-        .preload('items', (itemQuery) => itemQuery.preload('product'))
-        .preload('customer')
-        .first()
-
-      if (existingLog) {
-        console.log('🔴 API RESULT store (Idempotent Hit)', existingLog.toJSON())
-        return response.status(200).json({
-          id: existingLog.id,
-          billNo: existingLog.billNo,
-          message: 'Already processed',
-          data: existingLog,
-        })
-      }
-    }
-
-    const data = request.only([
-      'customerId', 'truckId', 'totalPrice', 'items',
-      'totalDiscount', 'totalSoldPrice', 'isCredit', 'isPreOrder'
+    const input = request.only([
+      'customerId', 'truckId', 'totalPrice', 'items', 'totalDiscount',
+      'totalSoldPrice', 'isCredit', 'isPreOrder', 'preOrderId', 'billNo',
     ])
-
-    let truckName = 'โกดัง' // default
-    if (data.truckId) {
-      const truck = await Truck.find(data.truckId)
-      if (truck && truck.userId) {
-        const user = await User.find(truck.userId)
-        if (user) {
-          truckName = user.fullname
-        }
-      }
-    }
-
-    let calculatedPendingAmount = 0
-    let isBillPaid = true
-
-    data.items.forEach((item) => {
-      const itemSoldPrice = parseFloat(item.sold_price || item.soldPrice)
-      const itemQty = parseInt(item.quantity)
-
-      if (item.is_paid === false) {
-        isBillPaid = false
-        calculatedPendingAmount += ((itemSoldPrice) * itemQty)
-      }
-    })
-
-
-    const trx = await Database.transaction()
     try {
-      await this.cutStock(data, auth.user?.role)
-      const billNo = this.generateBillNo(data)
-
-      const sellLog = await SellLog.create({
-        uuid: uuid || null,
-        billNo: billNo,
-        customerId: data.customerId,
-        truckId: data.truckId || 0,
-        truckName: truckName,
-
-        totalPrice: data.items.reduce((acc, item) => {
-          const price = parseFloat(item.price)
-          return acc + (price * item.quantity)
-        }, 0),
-
-        totalDiscount: data.totalDiscount || 0,
-        totalSoldPrice: data.totalSoldPrice || data.totalPrice,
-        isCredit: data.isCredit || null,
-        userId: auth.user?.id,
-
-        pendingAmount: calculatedPendingAmount, // ยอดค้างชำระที่คำนวณจาก items ที่เป็น false
-        isPaid: isBillPaid, // สถานะการจ่ายเงินของบิลหลัก (ต้องมี field นี้ใน DB)
-        interest: 0, // default interest
-        isPreorder: data.isPreOrder || false // ระบุว่าเป็นบิล PreOrder หรือไม่
-      }, { client: trx })
-
-      // บันทึก Items
-      for (const item of data.items) {
-        await SellLogItem.create({
-          sellLogId: sellLog.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-          totalPrice: item.price * item.quantity,
-          discount: item.discount || 0,
-          soldPrice: item.sold_price || item.soldPrice, // รองรับ snake_case จาก json
-          isPaid: item.is_paid !== undefined ? item.is_paid : true
-        }, { client: trx })
-      }
-
-      await trx.commit()
-
-      const result = { billNo: billNo, message: 'Sell log created successfully', data: sellLog }
-      console.log('🔴 API RESULT store', { ...result, data: sellLog.serialize() })
-      return response.status(201).json(result)
-    } catch (err) {
-      await trx.rollback()
-      console.log('🔴 API RESULT store ERROR', err)
-      throw err
-    }
-  }
-
-  private generateBillNo(data) {
-    return `BMT-${data.customerId}-${data.truckId || '0'}-${new Date().getTime()}`
-  }
-
-  private async cutStock(data, role) {
-    const trx = await Database.transaction()
-    try {
-      for (const item of data.items) {
-        let selectedQueryModel = role == 'truck' ? TruckStock.query().where('truck_id', data.truckId) : WarehouseStock.query()
-        const stock = await selectedQueryModel
-          .where('product_id', item.productId)
-          .first()
-
-        if (stock) {
-          if (stock.quantity < item.quantity) {
-            throw new Error(`สินค้าในสต๊อกไม่เพียงพอ (Product ID: ${item.productId})`)
-          }
-
-          stock.quantity -= item.quantity
-          stock.useTransaction(trx)
-
-          if (stock.quantity <= 0) {
-            await stock.delete()
-          } else {
-            await stock.save()
-          }
-        } else {
-          throw new Error(`ไม่พบสินค้าในสต๊อก (Product ID: ${item.productId})`)
-        }
-      }
-      await trx.commit()
-    } catch (err) {
-      await trx.rollback()
-      throw err
+      const { sale, created } = await new SaleService().create(
+        input, auth.user! as unknown as User, request.input('uuid') || request.header('x-idempotency-key')
+      )
+      await sale.load('items', (query) => query.preload('product'))
+      await sale.load('customer')
+      return response.status(created ? 201 : 200).json({
+        id: sale.id, billNo: sale.billNo, bill_no: sale.billNo,
+        message: created ? 'Sell log created successfully' : 'Already processed', data: sale,
+      })
+    } catch (error) {
+      if (error instanceof SaleError) return response.status(error.status).json({ message: error.message })
+      throw error
     }
   }
 

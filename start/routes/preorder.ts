@@ -6,6 +6,8 @@ Route.group(() => {
   Route.post('/', 'PreOrdersController.store') 
   Route.put('/:id', 'PreOrdersController.update')
   Route.post('/:id/confirm', 'PreOrdersController.confirm')
+  Route.put('/:id/confirm', 'PreOrdersController.confirm')
+  Route.put('/:id/cancel', 'PreOrdersController.cancel')
   Route.post('/:id/cancel', 'PreOrdersController.cancel') 
   Route.get('/sync/:truckId', 'PreOrdersController.syncForTruck')
 }).prefix('/pre-orders').middleware(['auth','requestLogger'])
